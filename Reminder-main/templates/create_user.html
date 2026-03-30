@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if edit_mode %}Edit User{% else %}Create User{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="bg-white shadow-xl rounded-2xl p-8 max-w-xl mx-auto">
+
+<h2 class="text-2xl font-semibold mb-6">
+
+{% if edit_mode %}
+Edit User
+{% else %}
+Create New User
+{% endif %}
+
+</h2>
+
+<form method="POST" class="space-y-5">
+{% csrf_token %}
+
+<div>
+<label class="block text-sm mb-1">Username</label>
+
+<input type="text"
+name="username"
+required
+value="{% if edit_mode %}{{ edit_user.username }}{% endif %}"
+class="w-full border rounded-lg px-3 py-2">
+
+</div>
+
+
+<div>
+<label class="block text-sm mb-1">Email</label>
+
+<input type="email"
+name="email"
+value="{% if edit_mode %}{{ edit_user.email }}{% endif %}"
+class="w-full border rounded-lg px-3 py-2">
+
+</div>
+
+
+<div>
+<label class="block text-sm mb-1">
+{% if edit_mode %}New Password (leave blank to keep same){% else %}Password{% endif %}
+</label>
+
+<input type="password"
+name="password"
+{% if not edit_mode %}required{% endif %}
+class="w-full border rounded-lg px-3 py-2">
+
+</div>
+
+
+<div>
+<label class="block text-sm mb-1">Role</label>
+
+<select name="role"
+class="w-full border rounded-lg px-3 py-2">
+
+<option value="user"
+{% if edit_mode and not edit_user.is_staff %}selected{% endif %}
+>
+User
+</option>
+
+<option value="admin"
+{% if edit_mode and edit_user.is_staff %}selected{% endif %}
+>
+Admin
+</option>
+
+</select>
+
+</div>
+
+
+<button type="submit"
+class="bg-indigo-600 text-white px-6 py-2 rounded-lg">
+
+{% if edit_mode %}
+Update User
+{% else %}
+Create User
+{% endif %}
+
+</button>
+
+</form>
+
+</div>
+
+{% endblock %}

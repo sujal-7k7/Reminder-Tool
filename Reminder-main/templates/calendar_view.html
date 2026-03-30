@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+{{ events|json_script:"calendar-events-data" }}
+
+<div class="max-w-7xl mx-auto px-6 py-8 relative">
+
+    <div class="bg-white/80 backdrop-blur rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">📅 Reminder Calendar</h2>
+                <p class="text-sm text-gray-500 mt-1">View and manage your upcoming tasks and events.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <input id="calendarSearch" type="text" placeholder="Search title..."
+                       class="px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-48">
+
+                <select id="catFilter" class="px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="all">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.name }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <a href="{% url 'dashboard' %}"
+                   class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-200 transition">← Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<!--
+  FIX: Modal uses both 'hidden' and 'flex' classes in markup so Tailwind's JIT
+  does not purge 'flex' (it only sees it used in JS). The hidden class takes
+  precedence initially because it sets display:none; openModal switches them.
+  FIX: onclick on the outer backdrop div handles click-outside-to-close.
+-->
+<div id="eventModal"
+     class="fixed inset-0 hidden items-center justify-center bg-gray-900/50 backdrop-blur-sm z-50 p-4"
+     onclick="handleBackdropClick(event)">
+    <div id="modalCard" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+        <div id="modalHeader" class="px-6 py-4 text-white flex justify-between items-center">
+            <h3 id="modalTitle" class="text-lg font-bold truncate"></h3>
+            <button onclick="closeModal()" class="text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-6 space-y-4 text-sm text-gray-700">
+            <div class="grid grid-cols-[100px_1fr] gap-2">
+                <span class="font-bold text-gray-900">Status:</span>
+                <span id="modalStatus" class="capitalize font-bold"></span>
+
+                <span class="font-bold text-gray-900">Time:</span>
+                <span id="modalTime"></span>
+
+                <span class="font-bold text-gray-900">Category:</span>
+                <span id="modalCategory" class="text-indigo-600 font-bold"></span>
+            </div>
+            <hr>
+            <div>
+                <label class="block font-bold text-gray-900 mb-1">Subject</label>
+                <p id="modalSubject" class="text-gray-600"></p>
+            </div>
+            <div>
+                <label class="block font-bold text-gray-900 mb-1">Purpose</label>
+                <p id="modalPurpose" class="bg-gray-50 p-3 rounded-lg border text-gray-600 italic"></p>
+            </div>
+            <div class="pt-2 border-t text-xs">
+                <p><strong>To:</strong> <span id="modalTo" class="break-all text-blue-600"></span></p>
+                <p><strong>CC:</strong> <span id="modalCC" class="break-all text-gray-500"></span></p>
+            </div>
+        </div>
+        <div class="bg-gray-50 px-6 py-4 flex justify-end">
+            <button onclick="closeModal()"
+                    class="bg-gray-200 px-6 py-2 rounded-xl hover:bg-gray-300 font-bold transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Debounce helper — prevents refetchEvents firing on every keystroke
+function debounce(fn, delay) {
+    let timer;
+    return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const allEvents = JSON.parse(document.getElementById('calendar-events-data').textContent);
+    const calendarEl = document.getElementById('calendar');
+
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        // FIX: displayEventTime set per-view so month view stays clean while
+        // week and list views still show times. The original code set it globally
+        // to false, hiding times everywhere including week/list views.
+        views: {
+            dayGridMonth: { displayEventTime: false },
+            timeGridWeek: { displayEventTime: true },
+            listMonth:    { displayEventTime: true }
+        },
+        headerToolbar: {
+            left:   'prev,next today',
+            center: 'title',
+            right:  'dayGridMonth,timeGridWeek,listMonth'
+        },
+        height: "auto",
+
+        // Dynamic Filter Logic
+        events: function(info, successCallback) {
+            const searchTerm = document.getElementById('calendarSearch').value.toLowerCase();
+            const catFilter  = document.getElementById('catFilter').value;
+
+            const filtered = allEvents.filter(e => {
+                const matchTitle = e.title.toLowerCase().includes(searchTerm);
+                const matchCat   = (catFilter === 'all' || e.extendedProps.category === catFilter);
+                return matchTitle && matchCat;
+            });
+            successCallback(filtered);
+        },
+
+        eventClick: function(info) {
+            const p = info.event.extendedProps;
+
+            // FIX: Use textContent (not innerHTML) and guard every field against
+            // null/undefined so they never render as the string "null" or "undefined".
+            document.getElementById("modalTitle").textContent    = info.event.title || '';
+            document.getElementById("modalStatus").textContent   = p.status || '—';
+            document.getElementById("modalTime").textContent     = p.time   || '—';
+            document.getElementById("modalCategory").textContent = p.category || 'General';
+            document.getElementById("modalSubject").textContent  = p.subject  || '—';
+            document.getElementById("modalPurpose").textContent  = p.purpose  || '—';
+            document.getElementById("modalTo").textContent       = p.email_to || '—';
+            // FIX: Check for both null/undefined AND the string "None" that the
+            // view serialises when email_cc is empty.
+            document.getElementById("modalCC").textContent =
+                (p.email_cc && p.email_cc !== 'None') ? p.email_cc : '—';
+
+            document.getElementById("modalHeader").style.backgroundColor =
+                info.event.backgroundColor || '#6366f1';
+
+            openModal();
+        }
+    });
+
+    calendar.render();
+
+    // FIX: Debounced search — waits 300 ms after user stops typing
+    document.getElementById('calendarSearch').addEventListener(
+        'input', debounce(() => calendar.refetchEvents(), 300)
+    );
+    document.getElementById('catFilter').addEventListener(
+        'change', () => calendar.refetchEvents()
+    );
+});
+
+function openModal() {
+    const modal = document.getElementById("eventModal");
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+}
+
+function closeModal() {
+    const modal = document.getElementById("eventModal");
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+}
+
+// Close modal only when clicking the backdrop, not the card itself
+function handleBackdropClick(event) {
+    if (!document.getElementById('modalCard').contains(event.target)) {
+        closeModal();
+    }
+}
+
+// FIX: Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+});
+</script>
+
+<style>
+    .fc-event { cursor: pointer; border-radius: 6px; padding: 3px 6px; border: none !important; font-weight: 600; font-size: 0.8rem; }
+    .fc-toolbar-title { font-weight: 800; color: #1e293b; }
+    .fc-button-primary { background-color: #6366f1 !important; border: none !important; text-transform: capitalize !important; }
+    .fc-day-today { background-color: #f8faff !important; }
+</style>
+{% endblock %}

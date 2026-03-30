@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-8">
+
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-semibold">
+            Category Master
+        </h2>
+
+        <a href="{% url 'create_reminder' %}"
+           class="text-sm text-indigo-600 hover:underline">
+           Back to Reminder Form
+        </a>
+    </div>
+
+
+    <!-- ADD CATEGORY -->
+    <form method="POST" class="flex gap-4 mb-8">
+        {% csrf_token %}
+
+        <input
+            type="text"
+            name="name"
+            placeholder="Enter category name"
+            required
+            class="flex-1 border px-4 py-3 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
+        >
+
+        <button
+            type="submit"
+            name="add_category"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg transition"
+        >
+            Add
+        </button>
+
+    </form>
+
+
+    <!-- CATEGORY LIST -->
+    <div class="space-y-4">
+
+        {% for cat in categories %}
+
+        <div class="flex justify-between items-center border rounded-xl p-4 hover:shadow-sm transition">
+
+            <div>
+                <h3 class="font-medium text-lg">
+                    {{ cat.name }}
+                </h3>
+
+                <p class="text-sm text-gray-500">
+                    Status:
+                    <span class="{% if cat.status == 'active' %}text-green-600{% else %}text-red-600{% endif %}">
+                        {{ cat.status|title }}
+                    </span>
+                </p>
+            </div>
+
+            <div class="flex gap-3">
+
+                <!-- TOGGLE STATUS -->
+                <form method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="cat_id" value="{{ cat.id }}">
+
+                    <button
+                        type="submit"
+                        name="toggle_status"
+                        class="px-4 py-2 rounded-lg border text-sm hover:bg-gray-100 transition"
+                    >
+                        Toggle
+                    </button>
+                </form>
+
+                <!-- DELETE CATEGORY -->
+                <form method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="cat_id" value="{{ cat.id }}">
+
+                    <button
+                        type="submit"
+                        name="delete_category"
+                        onclick="return confirm('Delete this category?')"
+                        class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm transition"
+                    >
+                        Delete
+                    </button>
+                </form>
+
+            </div>
+
+        </div>
+
+        {% empty %}
+
+        <div class="text-center py-10 text-gray-500">
+            No categories added yet.
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+{% endblock %}

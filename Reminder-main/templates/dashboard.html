@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+{# FIX: Use json_script instead of |safe inline injection to prevent XSS #}
+{{ interval_data|json_script:"interval-data" }}
+{{ status_data|json_script:"status-data" }}
+
+<div class="absolute top-0 left-0 w-full h-[45vh] bg-gradient-to-b from-white/60 to-transparent -z-10 pointer-events-none"></div>
+
+<div class="bg-white/80 backdrop-blur border rounded-2xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 mt-2">
+  
+  <div>
+    <h2 class="text-2xl font-semibold text-gray-800">
+      Welcome back, {{ request.user.username }} 👋
+    </h2>
+    <p class="text-gray-500 text-sm mt-1">
+      Manage your reminders and stay notified on time.
+    </p>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <a href="{% url 'calendar_view' %}" class="bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl shadow-sm hover:bg-gray-50 hover:text-indigo-600 transition flex items-center gap-2 font-medium whitespace-nowrap">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+      </svg>
+      Calendar
+    </a>
+    <a href="{% url 'create_reminder' %}" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl shadow-sm hover:bg-indigo-700 hover:scale-105 active:scale-95 transition whitespace-nowrap font-medium">
+      + Create Reminder
+    </a>
+  </div>
+
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+  <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+    <p class="text-gray-500 text-sm font-medium">Total Reminders</p>
+    <h3 id="totalCount" class="text-3xl font-bold text-indigo-600 mt-2">{{ total }}</h3>
+  </div>
+  <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+    <p class="text-gray-500 text-sm font-medium">Today</p>
+    <h3 id="todayCount" class="text-3xl font-bold text-green-600 mt-2">{{ today }}</h3>
+  </div>
+  <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+    <p class="text-gray-500 text-sm font-medium">Overdue</p>
+    <h3 id="overdueCount" class="text-3xl font-bold text-red-600 mt-2">{{ overdue }}</h3>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+  <div class="bg-white p-7 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-semibold text-gray-700">Reminders by Recurrence</h3>
+    </div>
+    <div class="h-[300px]">
+      <canvas id="intervalChart"></canvas>
+    </div>
+  </div>
+
+  <div class="bg-white p-7 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-semibold text-gray-700">Status Distribution</h3>
+    </div>
+    <div class="h-[300px]">
+      <canvas id="statusChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="flex mb-6">
+  <input id="searchInput" type="text" placeholder="Search reminders..." class="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white shadow-sm">
+</div>
+
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative">
+  <div id="syncIndicator" class="absolute top-3 right-4 text-xs font-semibold text-green-500 opacity-0 transition-opacity duration-500 flex items-center gap-1">
+    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Live
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm text-gray-700 whitespace-nowrap">
+      <thead class="bg-gray-50 text-xs uppercase text-gray-500">
+        <tr>
+          <th class="px-4 py-3 text-center">#</th>
+          <th class="px-4 py-3 text-left">Title</th>
+          <th class="px-4 py-3 text-center">Recurrence</th>
+          <th class="px-4 py-3 text-center">Start</th>
+          <th class="px-4 py-3 text-center">Next Trigger</th>
+          <th class="px-4 py-3 text-center">Status</th>
+          <th class="px-4 py-3 text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="reminderTable">
+        {% for r in reminders %}
+        <tr class="border-t hover:bg-gray-50 transition">
+          <td class="px-4 py-3 text-center">{{ forloop.counter }}</td>
+          <td class="px-4 py-3 font-medium">{{ r.title }}</td>
+          <td class="px-4 py-3 text-center capitalize">{{ r.recurrence_type }}</td>
+          {# FIX: Format time with H:i to strip seconds from display #}
+          <td class="px-4 py-3 text-center">{{ r.start_date }} {{ r.time|time:"H:i" }}</td>
+          <td class="px-4 py-3 text-center">
+            {% if r.next_trigger %}
+              {{ r.next_trigger|date:"M d, Y H:i" }}
+            {% else %} 
+              <span class="text-gray-400 text-sm">Not scheduled</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-center">
+            {% if r.status == "active" %} 
+              <span class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700">Active</span>
+            {% elif r.status == "notified" %} 
+              <span class="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700">Notified</span>
+            {% elif r.status == "paused" %} 
+              <span class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">Paused</span>
+            {% elif r.status == "overdue" %} 
+              <span class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-700">Overdue</span>
+            {% elif r.status == "completed" %} 
+              <span class="px-3 py-1 text-xs rounded-full bg-gray-200 text-gray-600">Completed</span>
+            {% elif r.status == "failed" %} 
+              <span class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-800 font-semibold">Failed</span>
+            {% else %}
+              {# FIX: Fallback badge for any unknown/future statuses #}
+              <span class="px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-500 capitalize">{{ r.status }}</span>
+            {% endif %}
+          </td>
+          
+          <td class="px-4 py-3 text-center space-x-2">
+            {% if r.status != "completed" %} 
+              <form action="{% url 'toggle_pause' r.id %}" method="POST" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="px-3 py-1 rounded text-white shadow-sm transition-colors {% if r.status == 'paused' %}bg-green-600 hover:bg-green-700{% else %}bg-yellow-500 hover:bg-yellow-600{% endif %}">
+                  {% if r.status == "paused" %}Resume{% else %}Pause{% endif %}
+                </button>
+              </form>
+            {% endif %}
+
+            <a href="{% url 'edit_reminder' r.id %}" class="bg-blue-500 text-white px-3 py-1 rounded shadow-sm hover:bg-blue-600 transition-colors inline-block">Edit</a>
+
+            <form action="{% url 'delete_reminder' r.id %}" method="POST" class="inline">
+              {% csrf_token %}
+              <button type="submit" onclick="return confirm('Are you sure you want to delete this reminder?');" class="text-red-500 hover:text-red-700 font-medium px-2">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        {# FIX: Added data-empty attribute for reliable empty-row detection in JS #}
+        <tr data-empty="true">
+          <td colspan="7" class="text-center py-12 text-gray-400">
+            No reminders yet.<br>
+            Create your first reminder to get started.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // FIX: Read chart data safely via json_script instead of |safe inline injection
+  const intervalData = JSON.parse(document.getElementById('interval-data').textContent);
+  const statusData   = JSON.parse(document.getElementById('status-data').textContent);
+
+  // FIX: Store chart instances so they can be destroyed before recreation if needed
+  let intervalChartInstance = null;
+  let statusChartInstance   = null;
+
+  const palette = ["#6366F1", "#22C55E", "#F59E0B", "#EF4444", "#8B5CF6", "#14B8A6"];
+
+  function renderCharts(iData, sData) {
+    // FIX: Destroy existing chart instances before re-creating to avoid "canvas in use" errors
+    if (intervalChartInstance) { intervalChartInstance.destroy(); intervalChartInstance = null; }
+    if (statusChartInstance)   { statusChartInstance.destroy();   statusChartInstance   = null; }
+
+    if (iData && iData.length > 0) {
+      intervalChartInstance = new Chart(document.getElementById('intervalChart'), {
+        type: 'bar',
+        data: {
+          labels: iData.map(i => i.recurrence_type),
+          datasets: [{
+            label: 'Reminders',
+            data: iData.map(i => i.count),
+            backgroundColor: palette,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { grid: { color: "#f1f5f9" }, beginAtZero: true, ticks: { stepSize: 1 } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    if (sData && sData.length > 0) {
+      statusChartInstance = new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+          labels: sData.map(s => s.status),
+          datasets: [{
+            data: sData.map(s => s.count),
+            backgroundColor: ["#22C55E", "#F59E0B", "#EF4444", "#6366F1"],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          cutout: "65%",
+          plugins: { legend: { position: "bottom" } }
+        }
+      });
+    }
+  }
+
+  renderCharts(intervalData, statusData);
+
+  // 1. Search Logic
+  // FIX: Use 'input' event instead of 'keyup' to also catch paste, autocomplete, and clear-field
+  const searchInput = document.getElementById("searchInput");
+  if (searchInput) {
+    searchInput.addEventListener("input", function () {
+      const filter = this.value.toLowerCase();
+      const rows = document.querySelectorAll("#reminderTable tr");
+      rows.forEach(row => {
+        // FIX: Use data-empty attribute instead of children.length heuristic
+        if (row.dataset.empty) return;
+        row.style.display = row.innerText.toLowerCase().includes(filter) ? "" : "none";
+      });
+    });
+  }
+
+  // 2. AUTO-UPDATER (Live Sync)
+  // FIX: Pause polling when the browser tab is hidden to avoid wasteful background requests
+  // FIX: Skip table update if user has a confirm dialog open (document.hidden check covers tab switch;
+  //      a simple flag covers in-page confirm dialogs via beforeunload pattern)
+  let updatePaused = false;
+
+  document.querySelectorAll('button[onclick*="confirm"]').forEach(btn => {
+    btn.addEventListener('click', () => { updatePaused = true; });
+  });
+
+  setInterval(() => {
+    // FIX: Skip fetch entirely if tab is not visible or an action is in progress
+    if (document.hidden || updatePaused) return;
+
+    fetch(window.location.href, {
+      // FIX: Send cache-busting headers so the browser doesn't serve a stale cached response
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    })
+      .then(response => response.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+
+        // Flash "Live" indicator
+        const syncIndicator = document.getElementById('syncIndicator');
+        if (syncIndicator) {
+          syncIndicator.classList.remove('opacity-0');
+          setTimeout(() => syncIndicator.classList.add('opacity-0'), 1500);
+        }
+
+        // Update Counts
+        const total   = doc.getElementById("totalCount");
+        const today   = doc.getElementById("todayCount");
+        const overdue = doc.getElementById("overdueCount");
+        if (total)   document.getElementById("totalCount").innerHTML   = total.innerHTML;
+        if (today)   document.getElementById("todayCount").innerHTML   = today.innerHTML;
+        if (overdue) document.getElementById("overdueCount").innerHTML = overdue.innerHTML;
+
+        // FIX: Only replace table when not searching, same as before — but also skip if updatePaused
+        const sInput = document.getElementById("searchInput");
+        if (sInput && sInput.value.trim() === "" && !updatePaused) {
+          const newTable = doc.getElementById("reminderTable");
+          if (newTable) document.getElementById("reminderTable").innerHTML = newTable.innerHTML;
+        }
+      })
+      .catch(err => console.error("Auto-update failed:", err));
+  }, 5000);
+
+  // FIX: Reset updatePaused flag after any form submission completes
+  // (handles the case where user clicks Delete → cancels confirm → page stays)
+  document.addEventListener('click', function(e) {
+    // Reset flag 500ms after any click that isn't a submit, so confirm-cancel still unblocks updates
+    if (!e.target.matches('button[type="submit"]')) {
+      setTimeout(() => { updatePaused = false; }, 500);
+    }
+  });
+</script>
+{% endblock %}

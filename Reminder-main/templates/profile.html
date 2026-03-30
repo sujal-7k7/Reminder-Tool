@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+
+<div class="bg-white shadow-xl rounded-2xl p-8 max-w-2xl mx-auto">
+
+<h2 class="text-2xl font-semibold mb-6">
+User Profile
+</h2>
+
+<div class="space-y-4 text-sm">
+
+<div class="flex justify-between border-b pb-2">
+<span class="text-gray-500">Username</span>
+<span class="font-medium">{{ user_obj.username }}</span>
+</div>
+
+<div class="flex justify-between border-b pb-2">
+<span class="text-gray-500">Email</span>
+<span class="font-medium">{{ user_obj.email|default:"Not Provided" }}</span>
+</div>
+
+<div class="flex justify-between border-b pb-2">
+<span class="text-gray-500">Account Type</span>
+<span class="font-medium">
+{% if user_obj.is_staff %}Staff{% else %}User{% endif %}
+</span>
+</div>
+
+<div class="flex justify-between border-b pb-2">
+<span class="text-gray-500">Last Login</span>
+<span class="font-medium">
+{{ user_obj.last_login }}
+</span>
+</div>
+
+<div class="flex justify-between">
+<span class="text-gray-500">Joined</span>
+<span class="font-medium">
+{{ user_obj.date_joined }}
+</span>
+</div>
+
+</div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,814 @@
+{% extends "base.html" %}
+{% block title %}
+  {% if reminder %}Edit Reminder{% else %}Create Reminder{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="bg-white shadow-xl rounded-2xl p-8 max-w-5xl mx-auto">
+
+  <h2 class="text-2xl font-semibold text-gray-800 mb-6">
+    {% if reminder %}Edit Reminder{% else %}Create Reminder{% endif %}
+  </h2>
+
+  <!-- Progress Bar -->
+  <div class="mb-8 relative">
+    <div class="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -translate-y-1/2 rounded-full"></div>
+    <div id="pb-progress" class="absolute top-1/2 left-0 w-0 h-1 bg-indigo-600 -translate-y-1/2 rounded-full transition-all duration-500 ease-in-out"></div>
+    <div class="relative flex justify-between w-full z-10">
+      <div class="flex flex-col items-center bg-white px-4">
+        <div id="pb-step1-circle" class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md transition-colors duration-300">1</div>
+        <span id="pb-step1-text" class="text-sm font-semibold text-indigo-700 mt-2 transition-colors duration-300">Basic Info</span>
+      </div>
+      <div class="flex flex-col items-center bg-white px-4">
+        <div id="pb-step2-circle" class="w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-bold transition-colors duration-300">2</div>
+        <span id="pb-step2-text" class="text-sm font-semibold text-gray-400 mt-2 transition-colors duration-300">Recurrence</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Container -->
+  <div id="errorContainer"
+       class="{% if form.errors %}{% else %}hidden {% endif %}mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg shadow-sm transition-all">
+    <p class="font-bold flex items-center gap-2">
+      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+      </svg>
+      Please fix the following errors:
+    </p>
+    <ul id="errorList" class="list-disc ml-7 mt-2 text-sm space-y-1">
+      {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+      {% for field in form %}
+        {% for error in field.errors %}
+          <li><span class="font-medium">{{ field.label }}:</span> {{ error }}</li>
+        {% endfor %}
+      {% endfor %}
+    </ul>
+  </div>
+
+  <form method="POST" id="reminderForm" novalidate>
+    {% csrf_token %}
+
+    <!-- ===================== STEP 1 ===================== -->
+    <div id="step1" class="transition-opacity duration-300">
+
+      <h3 class="text-lg font-semibold mb-4 text-gray-700">Basic Information</h3>
+
+      <div class="grid grid-cols-2 gap-4">
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Title *</label>
+          <input type="text" name="title" id="titleInput" required maxlength="200"
+                 value="{{ reminder.title|default:'' }}"
+                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Subject *</label>
+          <input type="text" name="subject" id="subjectInput" required maxlength="200"
+                 value="{{ reminder.subject|default:'' }}"
+                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+        </div>
+
+        <div class="col-span-2">
+          <label class="block text-sm font-medium mb-1">Purpose</label>
+          <textarea name="purpose" rows="2"
+                    class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">{{ reminder.purpose|default:'' }}</textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Category</label>
+          <select name="category"
+                  class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+            <option value="">Select Category</option>
+            {% for cat in categories %}
+              <option value="{{ cat.id }}"
+                {% if reminder and reminder.category and reminder.category.id == cat.id %}selected{% endif %}>
+                {{ cat.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!--
+          A visible datetime-local picker (no name — not submitted directly).
+          Two hidden inputs carry the split date and time to Django's form fields.
+          splitAndStoreDateTime() populates them before advancing to step 2 and
+          again on final submit (in case the user goes Back and edits).
+        -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Start Date & Time *</label>
+          <input type="datetime-local" id="step1_start_date" required
+                 value="{% if reminder %}{{ reminder.start_date|date:'Y-m-d' }}T{{ reminder.time|time:'H:i' }}{% endif %}"
+                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+          <input type="hidden" name="start_date" id="hidden_start_date"
+                 value="{% if reminder %}{{ reminder.start_date|date:'Y-m-d' }}{% endif %}">
+          <input type="hidden" name="time" id="hidden_time"
+                 value="{% if reminder %}{{ reminder.time|time:'H:i' }}{% endif %}">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            Email To * <span class="text-xs text-gray-500 font-normal">(Separate multiple with ';')</span>
+          </label>
+          <input type="text" name="email_to" id="emailTo" required
+                 value="{{ reminder.email_to|default:'' }}"
+                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            Email CC <span class="text-xs text-gray-500 font-normal">(Separate multiple with ';')</span>
+          </label>
+          <input type="text" name="email_cc" id="emailCc"
+                 value="{{ reminder.email_cc|default:'' }}"
+                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+        </div>
+
+      </div>
+
+      <div class="text-right mt-8 pt-4 border-t">
+        <button type="button"
+                onclick="processStep1()"
+                class="bg-indigo-600 text-white px-8 py-2.5 rounded-lg hover:bg-indigo-700 shadow-md font-medium transition-colors">
+          Next Step →
+        </button>
+      </div>
+
+    </div>
+
+
+    <!-- ===================== STEP 2 ===================== -->
+    <div id="step2" style="display:none;" class="space-y-6 transition-opacity duration-300">
+
+      <h3 class="text-lg font-semibold text-gray-700">Recurrence Settings</h3>
+
+      <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex justify-between items-center shadow-sm">
+        <p class="text-sm text-indigo-900">
+          Reminder begins on: <span id="step2_date_preview" class="font-semibold text-indigo-700 ml-1">Not selected</span>
+        </p>
+        <button type="button" onclick="prevStep()" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium underline">
+          Edit Start Date
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-6">
+
+        <div class="bg-gray-50 border p-5 rounded-xl space-y-4">
+
+          <div class="flex flex-wrap gap-4 text-sm font-medium">
+            <label class="cursor-pointer flex items-center gap-1">
+              <input type="radio" name="recurrence_type" value="once"
+                     {% if reminder and reminder.recurrence_type == "once" %}checked{% endif %}
+                     onclick="showRecurrence('once')" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> One Time
+            </label>
+            <label class="cursor-pointer flex items-center gap-1">
+              <input type="radio" name="recurrence_type" value="daily"
+                     {% if reminder and reminder.recurrence_type == "daily" %}checked{% endif %}
+                     onclick="showRecurrence('daily')" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> Daily
+            </label>
+            <label class="cursor-pointer flex items-center gap-1">
+              <input type="radio" name="recurrence_type" value="weekly"
+                     {% if reminder and reminder.recurrence_type == "weekly" %}checked{% endif %}
+                     onclick="showRecurrence('weekly')" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> Weekly
+            </label>
+            <label class="cursor-pointer flex items-center gap-1">
+              <input type="radio" name="recurrence_type" value="monthly"
+                     {% if reminder and reminder.recurrence_type == "monthly" %}checked{% endif %}
+                     onclick="showRecurrence('monthly')" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> Monthly
+            </label>
+            <label class="cursor-pointer flex items-center gap-1">
+              <input type="radio" name="recurrence_type" value="yearly"
+                     {% if reminder and reminder.recurrence_type == "yearly" %}checked{% endif %}
+                     onclick="showRecurrence('yearly')" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> Yearly
+            </label>
+          </div>
+
+          <div id="recurrenceOptions" class="mt-4 pt-4 border-t border-gray-200"></div>
+
+        </div>
+
+        <div id="endRangePanel" class="bg-gray-50 border p-5 rounded-xl space-y-4">
+
+          <h4 class="font-semibold text-sm text-gray-700 border-b pb-2">End Range</h4>
+
+          <!-- range_type hidden field so Django always receives it -->
+          <input type="hidden" name="range_type" id="rangeTypeHidden" value="{{ reminder.range_type|default:'' }}">
+
+          <div class="space-y-3 pt-2">
+            <label class="flex items-center gap-3 text-sm font-medium cursor-pointer">
+              <input type="radio" name="_range_type_ui" value="end_by" id="rangeTypeEndBy"
+                     onclick="toggleRange('end_by')"
+                     class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+              End by a specific date
+            </label>
+            <div class="pl-7">
+              <!--
+                FIX: end_date is a DateField — use type="date" not datetime-local.
+                datetime-local produces "2026-03-30T09:00" which Django DateField rejects.
+              -->
+              <input type="date" name="end_date" id="rangeEndDate"
+                     value="{% if reminder and reminder.end_date %}{{ reminder.end_date|date:'Y-m-d' }}{% endif %}"
+                     class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-200 text-gray-400 cursor-not-allowed transition-colors"
+                     style="pointer-events:none;">
+            </div>
+
+            <label class="flex items-center gap-3 text-sm font-medium cursor-pointer mt-4">
+              <input type="radio" name="_range_type_ui" value="end_after" id="rangeTypeEndAfter"
+                     onclick="toggleRange('end_after')"
+                     class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+              End after a number of occurrences
+            </label>
+            <div class="pl-7 flex items-center gap-2">
+              <input type="number" name="occurrence_count" id="rangeCount" min="1"
+                     value="{% if reminder and reminder.occurrence_count %}{{ reminder.occurrence_count }}{% endif %}"
+                     class="border rounded-lg px-3 py-2 w-24 focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-200 text-gray-400 cursor-not-allowed transition-colors"
+                     style="pointer-events:none;">
+              <span class="text-sm text-gray-600">occurrences</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="flex justify-between mt-8 pt-4 border-t">
+        <button type="button"
+                onclick="prevStep()"
+                class="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700 transition-colors shadow-sm">
+          ← Back
+        </button>
+
+        <button type="submit"
+                class="bg-green-600 text-white px-8 py-2.5 rounded-lg hover:bg-green-700 font-medium shadow-md transition-colors">
+          Save Reminder ✓
+        </button>
+      </div>
+
+    </div>
+
+  </form>
+</div>
+
+
+<script>
+/* ================= UI HELPERS ================= */
+function showErrorBox(messages) {
+  const container = document.getElementById('errorContainer');
+  const list = document.getElementById('errorList');
+  messages.forEach(msg => {
+    const li = document.createElement('li');
+    li.textContent = msg;
+    li.setAttribute('data-js', '1');
+    list.appendChild(li);
+  });
+  container.classList.remove('hidden');
+  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function clearClientErrors() {
+  document.querySelectorAll('#errorList li[data-js="1"]').forEach(el => el.remove());
+  const list = document.getElementById('errorList');
+  if (list.children.length === 0) {
+    document.getElementById('errorContainer').classList.add('hidden');
+  }
+}
+
+function updateProgressBar(step) {
+  const progressLine = document.getElementById('pb-progress');
+  const s2Circle = document.getElementById('pb-step2-circle');
+  const s2Text   = document.getElementById('pb-step2-text');
+
+  if (step === 1) {
+    progressLine.style.width = '0';
+    s2Circle.classList.replace('bg-indigo-600', 'bg-gray-200');
+    s2Circle.classList.replace('text-white', 'text-gray-500');
+    s2Text.classList.replace('text-indigo-700', 'text-gray-400');
+  } else {
+    progressLine.style.width = '100%';
+    s2Circle.classList.replace('bg-gray-200', 'bg-indigo-600');
+    s2Circle.classList.replace('text-gray-500', 'text-white');
+    s2Text.classList.replace('text-gray-400', 'text-indigo-700');
+  }
+}
+
+/* ================= DATE HELPERS ================= */
+function getLocalDatetimeString() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 16);
+}
+
+function setDateBoundaries() {
+  {% if not reminder %}
+    document.getElementById('step1_start_date').min = getLocalDatetimeString();
+  {% endif %}
+}
+
+function validateSemicolonEmails(inputStr) {
+  if (!inputStr) return true;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emails = inputStr.split(';').map(e => e.trim()).filter(e => e.length > 0);
+  if (emails.length === 0) return false;
+  for (let email of emails) {
+    if (!emailRegex.test(email)) return false;
+  }
+  return true;
+}
+
+/*
+  Split the datetime-local value into date + time and store in the hidden
+  fields that Django's form actually reads.
+*/
+function splitAndStoreDateTime() {
+  const dtInput = document.getElementById('step1_start_date');
+  if (!dtInput.value) return;
+  const parts = dtInput.value.split('T');
+  document.getElementById('hidden_start_date').value = parts[0];
+  document.getElementById('hidden_time').value = parts[1] || '';
+}
+
+/* ================= STEP NAVIGATION ================= */
+function processStep1() {
+  clearClientErrors();
+  let errors = [];
+
+  const title   = document.getElementById('titleInput');
+  const subject = document.getElementById('subjectInput');
+  if (!title.value.trim())   errors.push("Title is required and cannot be empty.");
+  if (!subject.value.trim()) errors.push("Subject is required and cannot be empty.");
+
+  const startDateInput = document.getElementById('step1_start_date');
+  if (!startDateInput.value) {
+    errors.push("Start Date & Time is required.");
+  } else {
+    {% if not reminder %}
+      const selectedDate = new Date(startDateInput.value);
+      const now = new Date();
+      if (selectedDate <= now) {
+        errors.push("Start Date & Time cannot be in the past.");
+      }
+    {% endif %}
+  }
+
+  const emailTo = document.getElementById('emailTo');
+  const emailCc = document.getElementById('emailCc');
+  if (!emailTo.value.trim()) {
+    errors.push("Email To is required.");
+  } else if (!validateSemicolonEmails(emailTo.value)) {
+    errors.push("Invalid format in 'Email To'. Please check addresses and separate with semicolons.");
+  }
+  if (emailCc.value && !validateSemicolonEmails(emailCc.value)) {
+    errors.push("Invalid format in 'Email CC'. Please check addresses and separate with semicolons.");
+  }
+
+  if (errors.length > 0) {
+    showErrorBox(errors);
+    return;
+  }
+
+  // Populate hidden fields before advancing
+  splitAndStoreDateTime();
+
+  const previewSpan = document.getElementById('step2_date_preview');
+  previewSpan.textContent = formatTo12Hour(startDateInput.value);
+
+  const endDateInput = document.getElementById('rangeEndDate');
+  endDateInput.min = startDateInput.value.split('T')[0];
+  if (endDateInput.value && new Date(endDateInput.value) <= new Date(startDateInput.value.split('T')[0])) {
+    endDateInput.value = "";
+  }
+
+  document.getElementById("step1").style.display = "none";
+  document.getElementById("step2").style.display = "block";
+  updateProgressBar(2);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function prevStep() {
+  clearClientErrors();
+  document.getElementById("step2").style.display = "none";
+  document.getElementById("step1").style.display = "block";
+  updateProgressBar(1);
+}
+
+/* ================= RANGE & TOGGLES ================= */
+function toggleRange(type) {
+  const endDate = document.getElementById("rangeEndDate");
+  const count   = document.getElementById("rangeCount");
+
+  // Update the hidden range_type field Django reads
+  document.getElementById("rangeTypeHidden").value = type;
+
+  if (type === "end_by") {
+    endDate.style.pointerEvents = '';
+    endDate.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+    endDate.classList.add('bg-white', 'text-gray-900');
+    count.style.pointerEvents = 'none';
+    count.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+    count.classList.remove('bg-white', 'text-gray-900');
+    count.value = "";
+    count.removeAttribute('name');
+    endDate.setAttribute('name', 'end_date');
+  } else {
+    count.style.pointerEvents = '';
+    count.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+    count.classList.add('bg-white', 'text-gray-900');
+    endDate.style.pointerEvents = 'none';
+    endDate.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+    endDate.classList.remove('bg-white', 'text-gray-900');
+    endDate.value = "";
+    endDate.removeAttribute('name');
+    count.setAttribute('name', 'occurrence_count');
+  }
+}
+
+/* ================= RECURRENCE RENDER ================= */
+function showRecurrence(type) {
+  const container     = document.getElementById("recurrenceOptions");
+  const endRangePanel = document.getElementById("endRangePanel");
+
+  let html = "";
+
+  if (type === "once") {
+    html = `<div class="text-sm text-gray-600 bg-gray-100 p-3 rounded-lg border border-gray-200">This reminder will run <span class="font-bold">only once</span> at the selected start date &amp; time.</div>`;
+    endRangePanel.style.display = "none";
+  } else {
+    endRangePanel.style.display = "block";
+  }
+
+  if (type === "daily") {
+    html = `
+    <div class="space-y-4">
+      <label class="flex items-center gap-3 text-sm">
+        <input type="radio" name="daily_mode" value="interval" checked onclick="toggleDailyInterval(true)" class="w-4 h-4 text-indigo-600">
+        Every
+        <input type="number" name="interval" id="dailyInterval" value="1" min="1"
+               class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
+        day(s)
+      </label>
+
+      <label class="flex items-center gap-3 text-sm">
+        <input type="radio" name="daily_mode" value="weekday" onclick="toggleDailyInterval(false)" class="w-4 h-4 text-indigo-600">
+        Every weekday (Mon–Fri)
+      </label>
+
+      <div class="flex items-center gap-3 text-sm pt-4 border-t border-gray-200 mt-2">
+        <span class="font-medium text-indigo-700">Repeat throughout the day every</span>
+        <input type="number" name="hour_interval" id="hourInterval" min="1" max="23"
+               placeholder="–"
+               class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
+        <span>hour(s) <span class="text-gray-400 text-xs">(leave blank to skip)</span></span>
+      </div>
+    </div>
+    `;
+  }
+
+  if (type === "weekly") {
+    const savedDays = "{{ reminder.by_weekday|default:'' }}".split(',').map(d => d.trim());
+    const days = [
+      {val:'0', label:'Mon'}, {val:'1', label:'Tue'}, {val:'2', label:'Wed'},
+      {val:'3', label:'Thu'}, {val:'4', label:'Fri'}, {val:'5', label:'Sat'}, {val:'6', label:'Sun'}
+    ];
+    const dayCheckboxes = days.map(d => {
+      const checked = savedDays.includes(d.val) ? 'checked' : '';
+      return `<label class="flex items-center gap-1 cursor-pointer bg-white px-2 py-1 border rounded-md shadow-sm hover:bg-indigo-50">
+                <input type="checkbox" name="weekdays" value="${d.val}" ${checked} class="rounded text-indigo-600"> ${d.label}
+              </label>`;
+    }).join('');
+
+    html = `
+      <div class="text-sm flex items-center gap-2 mb-3">
+        Every
+        <input type="number" name="interval" value="{{ reminder.interval|default:'1' }}" min="1"
+               class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
+        week(s)
+      </div>
+      <p class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Select Days</p>
+      <div class="flex flex-wrap gap-3 text-sm">${dayCheckboxes}</div>
+    `;
+  }
+
+  if (type === "monthly") {
+    const savedMode     = "{{ reminder.monthly_mode|default:'day_of_month' }}";
+    const savedMonthday = "{{ reminder.by_monthday|default:'1' }}";
+    const savedSetpos   = "{{ reminder.by_setpos|default:'' }}";
+    const savedWeekday  = "{{ reminder.by_weekday|default:'' }}";
+
+    html = `
+      <div class="text-sm mb-3">
+        Every
+        <input type="number" name="interval" value="{{ reminder.interval|default:'1' }}" min="1"
+               class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
+        month(s)
+      </div>
+      <input type="hidden" name="monthly_mode" id="monthlyModeHidden" value="${savedMode}">
+      <div class="space-y-3 p-3 bg-white border rounded-lg">
+        <label class="flex items-center gap-3 text-sm cursor-pointer">
+          <input type="radio" name="_monthly_mode_ui" value="day_of_month"
+                 ${savedMode === 'day_of_month' ? 'checked' : ''}
+                 onclick="toggleMonthly('day')" class="w-4 h-4 text-indigo-600">
+          Day
+          <input type="number" name="by_monthday" id="monthlyDay"
+                 value="${savedMonthday}" min="1" max="31"
+                 class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500"
+                 ${savedMode !== 'day_of_month' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+        </label>
+        <label class="flex flex-wrap items-center gap-2 text-sm cursor-pointer">
+          <input type="radio" name="_monthly_mode_ui" value="nth_weekday"
+                 ${savedMode === 'nth_weekday' ? 'checked' : ''}
+                 onclick="toggleMonthly('nth')" class="w-4 h-4 text-indigo-600">
+          The
+          <select name="by_setpos" id="monthlySetpos"
+                  class="border rounded px-2 py-1"
+                  ${savedMode !== 'nth_weekday' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+            <option value="1"  ${savedSetpos=='1'  ?'selected':''}>First</option>
+            <option value="2"  ${savedSetpos=='2'  ?'selected':''}>Second</option>
+            <option value="3"  ${savedSetpos=='3'  ?'selected':''}>Third</option>
+            <option value="4"  ${savedSetpos=='4'  ?'selected':''}>Fourth</option>
+            <option value="-1" ${savedSetpos=='-1' ?'selected':''}>Last</option>
+          </select>
+          <select name="by_weekday" id="monthlyWeekday"
+                  class="border rounded px-2 py-1"
+                  ${savedMode !== 'nth_weekday' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+            <option value="0" ${savedWeekday=='0'?'selected':''}>Mon</option>
+            <option value="1" ${savedWeekday=='1'?'selected':''}>Tue</option>
+            <option value="2" ${savedWeekday=='2'?'selected':''}>Wed</option>
+            <option value="3" ${savedWeekday=='3'?'selected':''}>Thu</option>
+            <option value="4" ${savedWeekday=='4'?'selected':''}>Fri</option>
+            <option value="5" ${savedWeekday=='5'?'selected':''}>Sat</option>
+            <option value="6" ${savedWeekday=='6'?'selected':''}>Sun</option>
+          </select>
+        </label>
+      </div>
+    `;
+  }
+
+  if (type === "yearly") {
+    const savedMode    = "{{ reminder.yearly_mode|default:'specific_date' }}";
+    const savedMonth   = "{{ reminder.by_month|default:'1' }}";
+    const savedDay     = "{{ reminder.by_monthday|default:'1' }}";
+    const savedSetpos  = "{{ reminder.by_setpos|default:'' }}";
+    const savedWeekday = "{{ reminder.by_weekday|default:'' }}";
+
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthOptions = monthNames
+      .map((m, i) => `<option value="${i+1}" ${savedMonth==String(i+1)?'selected':''}>${m}</option>`).join('');
+    const monthOptionsNth = monthNames
+      .map((m, i) => `<option value="${i+1}" ${savedMonth==String(i+1)?'selected':''}>${m}</option>`).join('');
+
+    html = `
+      <div class="text-sm mb-3">
+        Every
+        <input type="number" name="interval" value="{{ reminder.interval|default:'1' }}" min="1"
+               class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
+        year(s)
+      </div>
+      <input type="hidden" name="yearly_mode" id="yearlyModeHidden" value="${savedMode}">
+      <div class="space-y-3 p-3 bg-white border rounded-lg">
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="radio" name="_yearly_mode_ui" value="specific_date"
+                 ${savedMode === 'specific_date' ? 'checked' : ''}
+                 onclick="toggleYearly('specific')" class="w-4 h-4 text-indigo-600">
+          On
+          <select name="by_month" id="yearlyMonth" class="border rounded px-2 py-1"
+                  ${savedMode !== 'specific_date' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+            ${monthOptions}
+          </select>
+          <input type="number" name="by_monthday" id="yearlyDay"
+                 value="${savedDay}" min="1" max="31"
+                 class="border rounded px-2 py-1 w-16"
+                 ${savedMode !== 'specific_date' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+        </label>
+
+        <label class="flex flex-wrap items-center gap-2 text-sm cursor-pointer">
+          <input type="radio" name="_yearly_mode_ui" value="nth_weekday"
+                 ${savedMode === 'nth_weekday' ? 'checked' : ''}
+                 onclick="toggleYearly('nth')" class="w-4 h-4 text-indigo-600">
+          The
+          <select name="by_setpos" id="yearlySetpos" class="border rounded px-2 py-1"
+                  ${savedMode !== 'nth_weekday' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+            <option value="1"  ${savedSetpos=='1'  ?'selected':''}>First</option>
+            <option value="2"  ${savedSetpos=='2'  ?'selected':''}>Second</option>
+            <option value="3"  ${savedSetpos=='3'  ?'selected':''}>Third</option>
+            <option value="4"  ${savedSetpos=='4'  ?'selected':''}>Fourth</option>
+            <option value="-1" ${savedSetpos=='-1' ?'selected':''}>Last</option>
+          </select>
+          <select name="by_weekday" id="yearlyWeekday" class="border rounded px-2 py-1"
+                  ${savedMode !== 'nth_weekday' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+            <option value="0" ${savedWeekday=='0'?'selected':''}>Mon</option>
+            <option value="1" ${savedWeekday=='1'?'selected':''}>Tue</option>
+            <option value="2" ${savedWeekday=='2'?'selected':''}>Wed</option>
+            <option value="3" ${savedWeekday=='3'?'selected':''}>Thu</option>
+            <option value="4" ${savedWeekday=='4'?'selected':''}>Fri</option>
+            <option value="5" ${savedWeekday=='5'?'selected':''}>Sat</option>
+            <option value="6" ${savedWeekday=='6'?'selected':''}>Sun</option>
+          </select>
+          of
+          <select name="by_month" id="yearlyMonthNth" class="border rounded px-2 py-1"
+                  ${savedMode !== 'nth_weekday' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+            ${monthOptionsNth}
+          </select>
+        </label>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+}
+
+/* ================= TOGGLE HELPERS ================= */
+function toggleDailyInterval(enabled) {
+  const el = document.getElementById("dailyInterval");
+  if (!el) return;
+  if (enabled) {
+    el.style.opacity = '';
+    el.style.pointerEvents = '';
+  } else {
+    el.style.opacity = '0.4';
+    el.style.pointerEvents = 'none';
+    el.value = "";
+  }
+}
+
+function toggleMonthly(mode) {
+  const dayInput = document.getElementById("monthlyDay");
+  const setpos   = document.getElementById("monthlySetpos");
+  const weekday  = document.getElementById("monthlyWeekday");
+  const hidden   = document.getElementById("monthlyModeHidden");
+  if (!dayInput) return;
+
+  if (mode === 'day') {
+    hidden.value = 'day_of_month';
+    dayInput.style.opacity = ''; dayInput.style.pointerEvents = '';
+    setpos.style.opacity = '0.4'; setpos.style.pointerEvents = 'none';
+    weekday.style.opacity = '0.4'; weekday.style.pointerEvents = 'none';
+  } else {
+    hidden.value = 'nth_weekday';
+    dayInput.style.opacity = '0.4'; dayInput.style.pointerEvents = 'none';
+    setpos.style.opacity = ''; setpos.style.pointerEvents = '';
+    weekday.style.opacity = ''; weekday.style.pointerEvents = '';
+  }
+}
+
+function toggleYearly(mode) {
+  const month    = document.getElementById("yearlyMonth");
+  const day      = document.getElementById("yearlyDay");
+  const setpos   = document.getElementById("yearlySetpos");
+  const weekday  = document.getElementById("yearlyWeekday");
+  const monthNth = document.getElementById("yearlyMonthNth");
+  const hidden   = document.getElementById("yearlyModeHidden");
+  if (!month) return;
+
+  if (mode === 'specific') {
+    hidden.value = 'specific_date';
+    month.style.opacity = ''; month.style.pointerEvents = '';
+    day.style.opacity = ''; day.style.pointerEvents = '';
+    setpos.style.opacity = '0.4'; setpos.style.pointerEvents = 'none';
+    weekday.style.opacity = '0.4'; weekday.style.pointerEvents = 'none';
+    monthNth.style.opacity = '0.4'; monthNth.style.pointerEvents = 'none';
+  } else {
+    hidden.value = 'nth_weekday';
+    month.style.opacity = '0.4'; month.style.pointerEvents = 'none';
+    day.style.opacity = '0.4'; day.style.pointerEvents = 'none';
+    setpos.style.opacity = ''; setpos.style.pointerEvents = '';
+    weekday.style.opacity = ''; weekday.style.pointerEvents = '';
+    monthNth.style.opacity = ''; monthNth.style.pointerEvents = '';
+  }
+}
+
+/* ================= DATE FORMAT ================= */
+function formatTo12Hour(datetimeStr) {
+  const [datePart, timePart] = datetimeStr.split('T');
+  const [year, month, day]   = datePart.split('-');
+  const [hoursStr, minutes]  = timePart.split(':');
+  let hours = parseInt(hoursStr, 10);
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${day}-${month}-${year} ${hours}:${minutes} ${ampm}`;
+}
+
+/* ================= FINAL SUBMISSION VALIDATION ================= */
+document.getElementById('reminderForm').addEventListener('submit', function(e) {
+  // Always split datetime into hidden fields before submit
+  splitAndStoreDateTime();
+
+  clearClientErrors();
+  let errors = [];
+
+  const recurrenceType = document.querySelector('input[name="recurrence_type"]:checked')?.value;
+  const rangeType      = document.getElementById('rangeTypeHidden')?.value;
+
+  if (!recurrenceType) errors.push("Please select a Recurrence type.");
+
+  if (recurrenceType === 'weekly') {
+    const checkedDays = document.querySelectorAll('input[name="weekdays"]:checked');
+    if (checkedDays.length === 0) {
+      errors.push("For Weekly reminders, you must select at least one day (Mon–Sun).");
+    }
+  }
+
+  if (recurrenceType === 'daily') {
+    const dailyMode = document.querySelector('input[name="daily_mode"]:checked')?.value;
+    if (dailyMode === 'interval') {
+      const intervalVal = document.getElementById('dailyInterval')?.value;
+      if (!intervalVal || parseInt(intervalVal) < 1) {
+        errors.push("Please enter a valid day interval (minimum 1).");
+      }
+    }
+    const hourVal = document.getElementById('hourInterval')?.value;
+    if (hourVal && (parseInt(hourVal) < 1 || parseInt(hourVal) > 23)) {
+      errors.push("Hour interval must be between 1 and 23.");
+    }
+  }
+
+  if (['weekly', 'monthly', 'yearly'].includes(recurrenceType)) {
+    const intervalInput = document.querySelector('#recurrenceOptions input[name="interval"]');
+    if (intervalInput && (!intervalInput.value || parseInt(intervalInput.value) < 1)) {
+      errors.push(`Please enter a valid ${recurrenceType} interval (minimum 1).`);
+    }
+  }
+
+  if (recurrenceType && recurrenceType !== 'once') {
+    if (!rangeType) {
+      errors.push("Please select an End Range for your recurring reminder.");
+    } else if (rangeType === 'end_by') {
+      const endDate   = document.getElementById('rangeEndDate').value;
+      const startDate = document.getElementById('hidden_start_date').value;
+      if (!endDate) {
+        errors.push("Please select a specific End Date.");
+      } else if (endDate <= startDate) {
+        errors.push("End Date must be strictly AFTER your Start Date.");
+      }
+    } else if (rangeType === 'end_after') {
+      const count = document.getElementById('rangeCount').value;
+      if (!count || parseInt(count) < 1) {
+        errors.push("Please enter a valid number of occurrences (minimum 1).");
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    e.preventDefault();
+    showErrorBox(errors);
+  }
+});
+
+/* ================= INITIALIZATION ================= */
+document.addEventListener("DOMContentLoaded", function() {
+  setDateBoundaries();
+
+  {% if form.errors %}
+    // Server returned errors — restore step 2 state
+    const selectedRecurrence = document.querySelector('input[name="recurrence_type"]:checked');
+    if (selectedRecurrence) {
+      showRecurrence(selectedRecurrence.value);
+    } else {
+      showRecurrence('once');
+    }
+
+    // Restore range_type selection
+    const savedRangeType = "{{ reminder.range_type|default:'' }}";
+    if (savedRangeType === 'end_by') {
+      document.getElementById('rangeTypeEndBy').checked = true;
+      toggleRange('end_by');
+    } else if (savedRangeType === 'end_after') {
+      document.getElementById('rangeTypeEndAfter').checked = true;
+      toggleRange('end_after');
+    }
+
+    document.getElementById('errorContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  {% elif reminder %}
+    // Edit mode — restore saved state, start on step 1
+    document.getElementById("step1").style.display = "block";
+    document.getElementById("step2").style.display = "none";
+    updateProgressBar(1);
+
+    const recurrenceType = "{{ reminder.recurrence_type }}";
+    showRecurrence(recurrenceType);
+
+    const dateInput = document.getElementById('step1_start_date').value;
+    if (dateInput) {
+      document.getElementById('step2_date_preview').textContent = formatTo12Hour(dateInput);
+    }
+
+    const savedRangeType = "{{ reminder.range_type|default:'' }}";
+    if (savedRangeType === 'end_by') {
+      document.getElementById('rangeTypeEndBy').checked = true;
+      toggleRange('end_by');
+    } else if (savedRangeType === 'end_after') {
+      document.getElementById('rangeTypeEndAfter').checked = true;
+      toggleRange('end_after');
+    }
+
+  {% else %}
+    // Create mode — default to once
+    showRecurrence('once');
+  {% endif %}
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,10 @@
+2026-03-30 08:41:05,820 | INFO | activity_logger | User=gouri | Action=login | Description=User logged in
+2026-03-30 08:41:21,763 | INFO | activity_logger | User=gouri | Action=logout | Description=User logged out
+2026-03-30 08:41:26,682 | INFO | activity_logger | User=sujal | Action=login | Description=User logged in
+2026-03-30 08:57:07,219 | INFO | activity_logger | User=sujal | Action=create | Description=Created reminder: test
+2026-03-30 09:33:05,563 | INFO | activity_logger | User=sujal | Action=login | Description=User logged in
+2026-03-30 09:42:34,519 | INFO | activity_logger | User=sujal | Action=create | Description=Created reminder: test
+2026-03-30 09:44:25,797 | INFO | activity_logger | User=sujal | Action=logout | Description=User logged out
+2026-03-30 09:45:02,965 | INFO | activity_logger | User=sujal | Action=login | Description=User logged in
+2026-03-30 09:51:13,398 | INFO | activity_logger | User=sujal | Action=create | Description=Created reminder: test
+2026-03-30 09:56:50,716 | INFO | activity_logger | User=sujal | Action=logout | Description=User logged out
