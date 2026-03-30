@@ -8,3 +8,17 @@
 2026-03-30 09:45:02,965 | INFO | activity_logger | User=sujal | Action=login | Description=User logged in
 2026-03-30 09:51:13,398 | INFO | activity_logger | User=sujal | Action=create | Description=Created reminder: test
 2026-03-30 09:56:50,716 | INFO | activity_logger | User=sujal | Action=logout | Description=User logged out
+2026-03-30 11:49:32,562 | INFO | activity_logger | User=sujal | Action=login | Description=User logged in
+2026-03-30 11:49:41,331 | INFO | activity_logger | User=sujal | Action=delete | Description=Deleted reminder: test
+2026-03-30 11:49:45,430 | INFO | activity_logger | User=sujal | Action=delete | Description=Deleted reminder: test
+2026-03-30 11:49:50,691 | INFO | activity_logger | User=sujal | Action=delete | Description=Deleted reminder: test
+2026-03-30 11:50:36,852 | INFO | activity_logger | User=sujal | Action=delete | Description=Deleted reminder: test
+2026-03-30 11:50:42,067 | INFO | activity_logger | User=sujal | Action=delete | Description=Deleted reminder: test
+2026-03-30 11:50:45,918 | INFO | activity_logger | User=sujal | Action=delete | Description=Deleted reminder: test
+2026-03-30 11:50:50,275 | INFO | activity_logger | User=sujal | Action=delete | Description=Deleted reminder: test
+2026-03-30 11:50:54,895 | INFO | activity_logger | User=sujal | Action=delete | Description=Deleted reminder: asdfg
+2026-03-30 11:51:00,575 | INFO | activity_logger | User=sujal | Action=delete | Description=Deleted reminder: test
+2026-03-30 14:45:18,807 | INFO | activity_logger | User=sujal | Action=login | Description=User logged in
+2026-03-30 14:46:34,866 | INFO | activity_logger | User=sujal | Action=create | Description=Created reminder: test
+2026-03-30 14:59:14,147 | INFO | activity_logger | User=sujal | Action=create | Description=Created reminder: tesy
+2026-03-30 14:59:36,133 | INFO | activity_logger | User=sujal | Action=edit | Description=Edited reminder: tesy

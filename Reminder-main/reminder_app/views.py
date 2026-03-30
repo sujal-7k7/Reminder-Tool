@@ -122,7 +122,7 @@ def logout_view(request):
 
 
 # =========================================================
-# DASHBOARD
+# DASHBOARD (Optimized for Live Sync)
 # =========================================================
 
 @login_required
@@ -133,6 +133,7 @@ def dashboard(request):
     today_date = timezone.localdate()
     reminders_to_update = []
 
+    # Status Logic Sync
     for reminder in reminders:
         original_status = reminder.status
 
@@ -149,22 +150,27 @@ def dashboard(request):
     if reminders_to_update:
         Reminder.objects.bulk_update(reminders_to_update, ['status'])
 
+    # Aggregates for Charts and Cards
     total = reminders.count()
     today = reminders.filter(next_trigger__date=today_date).count()
     overdue = reminders.filter(status="overdue").count()
 
-    interval_data = reminders.values("recurrence_type").annotate(count=Count("id")).order_by()
-    status_data   = reminders.values("status").annotate(count=Count("id")).order_by()
+    # Fixed: Use 'status' and 'recurrence_type' directly for chart consistency
+    interval_data = list(reminders.values("recurrence_type").annotate(count=Count("id")))
+    status_data   = list(reminders.values("status").annotate(count=Count("id")))
 
-    return render(request, "dashboard.html", {
+    context = {
         "reminders": reminders,
         "total": total,
         "today": today,
         "overdue": overdue,
-        "interval_data": list(interval_data),
-        "status_data": list(status_data),
-    })
+        "interval_data": interval_data,
+        "status_data": status_data,
+    }
 
+    # If the request is from our JS Auto-Updater, we return the same template,
+    # but the browser's DOMParser will handle extracting the IDs.
+    return render(request, "dashboard.html", context)
 
 # =========================================================
 # CONTACT
@@ -216,7 +222,8 @@ def create_reminder(request):
     categories = Category.objects.filter(status="active")
 
     if request.method == "POST":
-        form = ReminderForm(request.POST)
+        # NEW: Added request.FILES to handle the file upload
+        form = ReminderForm(request.POST, request.FILES)
 
         if form.is_valid():
             reminder = form.save(commit=False)
@@ -260,7 +267,8 @@ def edit_reminder(request, reminder_id):
     categories = Category.objects.filter(status="active")
 
     if request.method == "POST":
-        form = ReminderForm(request.POST, instance=reminder)
+        # NEW: Added request.FILES to handle the file upload update
+        form = ReminderForm(request.POST, request.FILES, instance=reminder)
 
         if form.is_valid():
             # Fetch original values directly from DB
@@ -427,6 +435,10 @@ def delete_user(request, user_id):
     return redirect("users_list")
 
 
+# =========================================================
+# CALENDAR VIEW (With Color Logic)
+# =========================================================
+
 @login_required
 def calendar_view(request):
     reminders = Reminder.objects.filter(
@@ -436,15 +448,19 @@ def calendar_view(request):
 
     events = []
     for r in reminders:
-        color = '#6366f1'
-        if r.status == 'completed':   color = '#9ca3af'
-        elif r.status == 'overdue':   color = '#ef4444'
-        elif r.status == 'paused':    color = '#f59e0b'
+        # Define colors to match your UI perfectly
+        # Matches: Green (Completed), Red (Overdue), Amber (Paused), Indigo (Active)
+        color = '#6366f1' # Default Indigo
+        if r.status == 'completed':   color = '#22c55e' # Success Green
+        elif r.status == 'overdue':   color = '#ef4444' # Danger Red
+        elif r.status == 'paused':    color = '#f59e0b' # Warning Orange
+        elif r.status == 'notified':  color = '#3b82f6' # Info Blue
 
         events.append({
             'title': r.title,
             'start': r.next_trigger.isoformat(),
-            'color': color,
+            'backgroundColor': color,
+            'borderColor': color,
             'extendedProps': {
                 'subject':   r.subject or 'No Subject',
                 'purpose':   r.purpose or 'No Purpose provided',

@@ -83,7 +83,28 @@
 </div>
 
 <script>
-// Debounce helper — prevents refetchEvents firing on every keystroke
+// Helper to define colors based on status
+function getColorByStatus(status) {
+    const s = status ? status.toLowerCase() : '';
+    switch (s) {
+        case 'completed':
+            return { back: '#22c55e', text: '#ffffff' }; // Green
+        case 'overdue':
+            return { back: '#ef4444', text: '#ffffff' }; // Red
+        case 'paused':
+            return { back: '#f59e0b', text: '#ffffff' }; // Amber/Orange
+        case 'notified':
+            return { back: '#3b82f6', text: '#ffffff' }; // Blue
+        case 'active':
+            return { back: '#6366f1', text: '#ffffff' }; // Indigo
+        case 'failed':
+            return { back: '#7f1d1d', text: '#ffffff' }; // Dark Red
+        default:
+            return { back: '#94a3b8', text: '#ffffff' }; // Slate Gray
+    }
+}
+
+// Debounce helper
 function debounce(fn, delay) {
     let timer;
     return function(...args) {
@@ -93,14 +114,23 @@ function debounce(fn, delay) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    const allEvents = JSON.parse(document.getElementById('calendar-events-data').textContent);
+    const allEventsRaw = JSON.parse(document.getElementById('calendar-events-data').textContent);
+    
+    // Map initial colors to the raw data
+    const allEvents = allEventsRaw.map(e => {
+        const colors = getColorByStatus(e.extendedProps.status);
+        return {
+            ...e,
+            backgroundColor: colors.back,
+            borderColor: colors.back,
+            textColor: colors.text
+        };
+    });
+
     const calendarEl = document.getElementById('calendar');
 
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
-        // FIX: displayEventTime set per-view so month view stays clean while
-        // week and list views still show times. The original code set it globally
-        // to false, hiding times everywhere including week/list views.
         views: {
             dayGridMonth: { displayEventTime: false },
             timeGridWeek: { displayEventTime: true },
@@ -113,7 +143,6 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         height: "auto",
 
-        // Dynamic Filter Logic
         events: function(info, successCallback) {
             const searchTerm = document.getElementById('calendarSearch').value.toLowerCase();
             const catFilter  = document.getElementById('catFilter').value;
@@ -129,8 +158,6 @@ document.addEventListener('DOMContentLoaded', function () {
         eventClick: function(info) {
             const p = info.event.extendedProps;
 
-            // FIX: Use textContent (not innerHTML) and guard every field against
-            // null/undefined so they never render as the string "null" or "undefined".
             document.getElementById("modalTitle").textContent    = info.event.title || '';
             document.getElementById("modalStatus").textContent   = p.status || '—';
             document.getElementById("modalTime").textContent     = p.time   || '—';
@@ -138,13 +165,14 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById("modalSubject").textContent  = p.subject  || '—';
             document.getElementById("modalPurpose").textContent  = p.purpose  || '—';
             document.getElementById("modalTo").textContent       = p.email_to || '—';
-            // FIX: Check for both null/undefined AND the string "None" that the
-            // view serialises when email_cc is empty.
             document.getElementById("modalCC").textContent =
                 (p.email_cc && p.email_cc !== 'None') ? p.email_cc : '—';
 
-            document.getElementById("modalHeader").style.backgroundColor =
-                info.event.backgroundColor || '#6366f1';
+            // Modal Header matches the event color
+            document.getElementById("modalHeader").style.backgroundColor = info.event.backgroundColor;
+
+            // Optional: Match the status text color in the modal
+            document.getElementById("modalStatus").style.color = info.event.backgroundColor;
 
             openModal();
         }
@@ -152,7 +180,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     calendar.render();
 
-    // FIX: Debounced search — waits 300 ms after user stops typing
     document.getElementById('calendarSearch').addEventListener(
         'input', debounce(() => calendar.refetchEvents(), 300)
     );
@@ -173,23 +200,14 @@ function closeModal() {
     modal.classList.remove("flex");
 }
 
-// Close modal only when clicking the backdrop, not the card itself
 function handleBackdropClick(event) {
     if (!document.getElementById('modalCard').contains(event.target)) {
         closeModal();
     }
 }
 
-// FIX: Close modal on Escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeModal();
 });
 </script>
-
-<style>
-    .fc-event { cursor: pointer; border-radius: 6px; padding: 3px 6px; border: none !important; font-weight: 600; font-size: 0.8rem; }
-    .fc-toolbar-title { font-weight: 800; color: #1e293b; }
-    .fc-button-primary { background-color: #6366f1 !important; border: none !important; text-transform: capitalize !important; }
-    .fc-day-today { background-color: #f8faff !important; }
-</style>
 {% endblock %}

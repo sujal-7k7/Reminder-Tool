@@ -45,6 +45,10 @@ class Reminder(models.Model):
     category = models.ForeignKey(
         Category, on_delete=models.SET_NULL, null=True, blank=True, related_name="reminders"
     )
+    
+    # --- File Attachment ---
+    # NEW: Added FileField to handle file uploads
+    attachment = models.FileField(upload_to='attachments/', blank=True, null=True)
 
     # --- Emails ---
     email_to = models.TextField()

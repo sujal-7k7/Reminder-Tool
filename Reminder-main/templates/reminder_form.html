@@ -11,7 +11,6 @@
     {% if reminder %}Edit Reminder{% else %}Create Reminder{% endif %}
   </h2>
 
-  <!-- Progress Bar -->
   <div class="mb-8 relative">
     <div class="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -translate-y-1/2 rounded-full"></div>
     <div id="pb-progress" class="absolute top-1/2 left-0 w-0 h-1 bg-indigo-600 -translate-y-1/2 rounded-full transition-all duration-500 ease-in-out"></div>
@@ -27,7 +26,6 @@
     </div>
   </div>
 
-  <!-- Error Container -->
   <div id="errorContainer"
        class="{% if form.errors %}{% else %}hidden {% endif %}mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg shadow-sm transition-all">
     <p class="font-bold flex items-center gap-2">
@@ -48,10 +46,9 @@
     </ul>
   </div>
 
-  <form method="POST" id="reminderForm" novalidate>
+  <form method="POST" id="reminderForm" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
 
-    <!-- ===================== STEP 1 ===================== -->
     <div id="step1" class="transition-opacity duration-300">
 
       <h3 class="text-lg font-semibold mb-4 text-gray-700">Basic Information</h3>
@@ -92,12 +89,21 @@
           </select>
         </div>
 
-        <!--
-          A visible datetime-local picker (no name — not submitted directly).
-          Two hidden inputs carry the split date and time to Django's form fields.
-          splitAndStoreDateTime() populates them before advancing to step 2 and
-          again on final submit (in case the user goes Back and edits).
-        -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Attachment (Optional)</label>
+          <input type="file" name="attachment" id="attachmentInput"
+                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none transition-all file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+          
+          {% if reminder and reminder.attachment %}
+            <p class="text-sm text-gray-500 mt-2">
+              Current file: 
+              <a href="{{ reminder.attachment.url }}" target="_blank" class="text-indigo-600 hover:underline">
+                {{ reminder.attachment.name }}
+              </a>
+            </p>
+          {% endif %}
+        </div>
+
         <div>
           <label class="block text-sm font-medium mb-1">Start Date & Time *</label>
           <input type="datetime-local" id="step1_start_date" required
@@ -140,7 +146,6 @@
     </div>
 
 
-    <!-- ===================== STEP 2 ===================== -->
     <div id="step2" style="display:none;" class="space-y-6 transition-opacity duration-300">
 
       <h3 class="text-lg font-semibold text-gray-700">Recurrence Settings</h3>
@@ -194,7 +199,6 @@
 
           <h4 class="font-semibold text-sm text-gray-700 border-b pb-2">End Range</h4>
 
-          <!-- range_type hidden field so Django always receives it -->
           <input type="hidden" name="range_type" id="rangeTypeHidden" value="{{ reminder.range_type|default:'' }}">
 
           <div class="space-y-3 pt-2">
@@ -205,10 +209,6 @@
               End by a specific date
             </label>
             <div class="pl-7">
-              <!--
-                FIX: end_date is a DateField — use type="date" not datetime-local.
-                datetime-local produces "2026-03-30T09:00" which Django DateField rejects.
-              -->
               <input type="date" name="end_date" id="rangeEndDate"
                      value="{% if reminder and reminder.end_date %}{{ reminder.end_date|date:'Y-m-d' }}{% endif %}"
                      class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-200 text-gray-400 cursor-not-allowed transition-colors"

@@ -1,6 +1,10 @@
 from django.urls import path
 from . import views
 
+# --- Add these two imports for file attachments ---
+from django.conf import settings
+from django.conf.urls.static import static
+
 urlpatterns = [
     path("", views.login_view, name="login"),
     path("dashboard/", views.dashboard, name="dashboard"),
@@ -17,5 +21,8 @@ urlpatterns = [
     path("edit-user/<int:user_id>/", views.edit_user, name="edit_user"),
     path("delete-user/<int:user_id>/", views.delete_user, name="delete_user"),
     path('calendar/', views.calendar_view, name='calendar_view'),
-  
 ]
+
+# --- Files Attachments ---
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

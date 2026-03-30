@@ -1,3 +1,4 @@
+import os
 import re
 import html
 import logging
@@ -126,6 +127,20 @@ def send_reminder_email(reminder):
             cc=cc_emails,
         )
         msg.attach_alternative(html_content, "text/html")
+
+        # =========================================================
+        # NEW: ATTACHMENT LOGIC
+        # =========================================================
+        if reminder.attachment and reminder.attachment.name:
+            file_path = os.path.join(settings.MEDIA_ROOT, reminder.attachment.name)
+            if os.path.exists(file_path):
+                msg.attach_file(file_path)
+            else:
+                error_logger.warning(
+                    f"Attachment missing on disk for Reminder ID {reminder.id}. "
+                    f"Expected path: {file_path}"
+                )
+        # =========================================================
 
         # BUG FIX: Check the return value of send().  It returns the number of
         # successfully delivered messages.  A return value of 0 means nothing

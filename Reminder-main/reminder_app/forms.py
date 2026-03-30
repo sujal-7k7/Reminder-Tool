@@ -23,6 +23,7 @@ class ReminderForm(forms.ModelForm):
             "subject",
             "purpose",
             "category",
+            "attachment",  # <-- NEW: Added attachment field here
             "email_to",
             "email_cc",
             "start_date",
@@ -56,6 +57,8 @@ class ReminderForm(forms.ModelForm):
         self.fields['range_type'].required = False
         self.fields['monthly_mode'].required = False
         self.fields['yearly_mode'].required = False
+        # Ensure attachment is not strictly required by the form
+        self.fields['attachment'].required = False 
 
         # Restore weekly_days checkboxes when editing an existing instance
         if self.instance.pk and self.instance.by_weekday and self.instance.recurrence_type == 'weekly':
