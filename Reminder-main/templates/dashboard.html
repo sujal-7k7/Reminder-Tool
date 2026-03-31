@@ -1,15 +1,16 @@
 {% extends "base.html" %}
-
-{% block title %}Dashboard{% endblock %}
+{% load static %}  {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<script src="{% static "JS\chart.js" %}"></script>
-  
+
+<script src="{% static 'JS/chart.js' %}"></script>
+
 {# Data for Charts — update-safe JSON scripts #}
 <div id="data-container">
     {{ interval_data|json_script:"interval-data" }}
     {{ status_data|json_script:"status-data" }}
 </div>
+
 
 <div class="absolute top-0 left-0 w-full h-[45vh] bg-gradient-to-b from-white/60 to-transparent -z-10 pointer-events-none"></div>
 

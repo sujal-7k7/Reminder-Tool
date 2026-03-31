@@ -345,6 +345,7 @@ def profile(request):
 def create_user(request):
     if request.method == "POST":
         username = request.POST.get("username", "").strip()
+        email    = request.POST.get("email", "").strip() # FIXED: Added email capture
         password = request.POST.get("password", "").strip()
         role     = request.POST.get("role", "user")
 
@@ -356,11 +357,11 @@ def create_user(request):
             messages.error(request, "Username already exists.")
             return redirect("create_user")
 
-        user = User.objects.create_user(username=username, password=password)
+        # FIXED: Pass the email directly into the create_user method
+        user = User.objects.create_user(username=username, email=email, password=password)
         user.is_staff = (role == "admin")
         user.save()
 
-        # FIX: log_activity called AFTER save() succeeds
         log_activity(request.user, "create_user", f"Created user {username}")
         messages.success(request, f"User '{username}' created successfully!")
         return redirect("users_list")
@@ -375,6 +376,7 @@ def edit_user(request, user_id):
 
     if request.method == "POST":
         username = request.POST.get("username", "").strip()
+        email    = request.POST.get("email", "").strip() # FIXED: Added email capture
         role     = request.POST.get("role", "user")
         password = request.POST.get("password", "").strip()
 
@@ -387,6 +389,7 @@ def edit_user(request, user_id):
             return redirect("users_list")
 
         user.username = username
+        user.email = email # FIXED: Apply the email to the user object
         user.is_staff = (role == "admin")
 
         if password:
@@ -394,7 +397,6 @@ def edit_user(request, user_id):
 
         user.save()
 
-        # FIX: log_activity called AFTER save() succeeds
         log_activity(request.user, "edit_user", f"Updated user {user.username}")
         messages.success(request, f"User '{username}' updated successfully!")
         return redirect("users_list")

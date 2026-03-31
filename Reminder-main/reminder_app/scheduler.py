@@ -22,22 +22,15 @@ def _calculate_next_trigger(reminder, now):
         return None
 
     next_dt = rule.after(now, inc=False)
-    return next_dt  # None is a valid "no more occurrences" signal
+    return next_dt  
 
 
 def _process_reminder(reminder, now):
     """
     Send the email for one reminder and update all its fields atomically.
     Raises on failure so the caller can handle retry logic.
-
-    FIX: now is re-captured inside the transaction rather than using the
-    outer loop snapshot. This prevents stale timestamps when the outer loop
-    iterates over many reminders slowly, which would cause _calculate_next_trigger
-    to compute an incorrect next_trigger based on a stale 'now'.
     """
     with transaction.atomic():
-        # FIX: Capture fresh 'now' inside the transaction so next_trigger is
-        # computed relative to the actual send time, not the outer loop snapshot.
         tx_now = timezone.now()
 
         # Re-fetch with a row lock — if another process already claimed this
@@ -61,11 +54,18 @@ def _process_reminder(reminder, now):
         next_trigger = _calculate_next_trigger(locked, tx_now)
         locked.next_trigger = next_trigger
 
-        # Set status to 'notified' and record the time so that update_status()
-        # inside save() sees it and leaves it alone — and so the timeout recovery
-        # in update_status() can detect a stuck 'notified' reminder.
-        locked.status = 'notified'
-        locked.notified_at = tx_now
+        # ==========================================
+        # 🚨 THE FIX: CRITICAL STATUS LOGIC 🚨
+        # ==========================================
+        if next_trigger is None:
+            # No more occurrences left
+            locked.status = 'completed'
+        else:
+            # Reset to active so the scheduler picks it up next time!
+            locked.status = 'active'
+            
+        # Clear the crash-detection flag since the send was successful
+        locked.notified_at = None
 
         locked.save()
 
@@ -96,8 +96,6 @@ def start_scheduler():
                     f"[{now.strftime('%H:%M:%S')}] Processing ID: {reminder.id} | {reminder.title}"
                 )
                 try:
-                    # Pass 'now' as a hint only; _process_reminder captures its own
-                    # fresh timestamp inside the transaction.
                     _process_reminder(reminder, now)
 
                 except Exception as e:
@@ -106,12 +104,6 @@ def start_scheduler():
                         f"'{reminder.title}': {e}"
                     )
 
-                    # FIX: Only increment retry_count after a confirmed send attempt
-                    # failed — not for transient DB/lock errors that happen before
-                    # the send. We detect this by checking if send_reminder_email
-                    # was reached; since we can't distinguish easily here, we
-                    # increment conservatively but log clearly so operators can
-                    # manually reset retry_count for infra failures.
                     try:
                         with transaction.atomic():
                             r = Reminder.objects.select_for_update().get(pk=reminder.pk)

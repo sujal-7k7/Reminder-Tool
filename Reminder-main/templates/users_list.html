@@ -1,136 +1,76 @@
 {% extends "base.html" %}
-
 {% block title %}Users{% endblock %}
 
 {% block content %}
-
 <div class="bg-white shadow-xl rounded-2xl p-8 max-w-5xl mx-auto">
 
-<!-- TOP BAR -->
-<div class="flex justify-between items-center mb-6">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-semibold">Users ({{ users|length }})</h2>
+        <a href="{% url 'create_user' %}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+            + Create User
+        </a>
+    </div>
 
-<h2 class="text-2xl font-semibold">
-Users ({{ users|length }})
-</h2>
+    <div class="mb-5">
+        <input type="text" id="userSearch" placeholder="Search users..."
+               class="w-full border rounded-lg px-3 py-2" onkeyup="filterUsers()">
+    </div>
 
-<a href="{% url 'create_user' %}"
-class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
-+ Create User
-</a>
-
-</div>
-
-<!-- SEARCH -->
-<div class="mb-5">
-<input
-type="text"
-id="userSearch"
-placeholder="Search users..."
-class="w-full border rounded-lg px-3 py-2"
-onkeyup="filterUsers()">
-</div>
-
-
-<table class="w-full text-sm" id="usersTable">
-
-<thead class="bg-gray-100">
-<tr>
-<th class="p-3 text-left">Username</th>
-<th class="p-3 text-left">Email</th>
-<th class="p-3 text-center">Role</th>
-<th class="p-3 text-center">Joined</th>
-<th class="p-3 text-center">Actions</th>
-</tr>
-</thead>
-
-<tbody>
-
-{% for u in users %}
-
-<tr class="border-t userRow">
-
-<td class="p-3 username">{{ u.username }}</td>
-
-<td class="p-3">{{ u.email|default:"-" }}</td>
-
-
-<td class="p-3 text-center">
-
-{% if u.is_superuser %}
-<span class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded">
-Superuser
-</span>
-
-{% elif u.is_staff %}
-<span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded">
-Admin
-</span>
-
-{% else %}
-<span class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-User
-</span>
-
-{% endif %}
-
-</td>
-
-
-<td class="p-3 text-center">
-{{ u.date_joined|date:"M d, Y" }}
-</td>
-
-
-<td class="p-3 text-center space-x-2">
-
-<!-- EDIT -->
-<a href="{% url 'edit_user' u.id %}"
-class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">
-Edit
-</a>
-
-<!-- DELETE (hidden for superuser) -->
-{% if not u.is_superuser %}
-<form action="{% url 'delete_user' u.id %}" method="POST" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit" 
-            onclick="return confirm('Delete this user?')"
-            class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">
-        Delete
-    </button>
-</form>
-{% endif %}
-
-</td>
-
-</tr>
-
-{% endfor %}
-
-</tbody>
-</table>
+    <div class="overflow-x-auto rounded-lg border border-gray-100 shadow-sm">
+        <table class="w-full text-sm min-w-[600px]" id="usersTable">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="p-3 text-left">Username</th>
+                    <th class="p-3 text-left">Email</th>
+                    <th class="p-3 text-center">Role</th>
+                    <th class="p-3 text-center">Joined</th>
+                    <th class="p-3 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr class="border-t userRow hover:bg-gray-50 transition">
+                    <td class="p-3 username">{{ u.username }}</td>
+                    <td class="p-3">{{ u.email|default:"-" }}</td>
+                    <td class="p-3 text-center">
+                        {% if u.is_superuser %}
+                            <span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">Superuser</span>
+                        {% elif u.is_staff %}
+                            <span class="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">Admin</span>
+                        {% else %}
+                            <span class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-full">User</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-3 text-center">
+                        {{ u.date_joined|date:"M d, Y" }}
+                    </td>
+                    <td class="p-3 text-center space-x-2">
+                        <a href="{% url 'edit_user' u.id %}" class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition">Edit</a>
+                        {% if not u.is_superuser %}
+                        <form action="{% url 'delete_user' u.id %}" method="POST" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Delete this user?')"
+                                    class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
 </div>
-
 
 <script>
-
 function filterUsers(){
-
-let input=document.getElementById("userSearch").value.toLowerCase()
-
-let rows=document.querySelectorAll(".userRow")
-
-rows.forEach(row=>{
-
-let username=row.querySelector(".username").innerText.toLowerCase()
-
-row.style.display=username.includes(input) ? "" : "none"
-
-})
-
+    let input = document.getElementById("userSearch").value.toLowerCase();
+    let rows = document.querySelectorAll(".userRow");
+    
+    rows.forEach(row => {
+        let username = row.querySelector(".username").innerText.toLowerCase();
+        row.style.display = username.includes(input) ? "" : "none";
+    });
 }
-
 </script>
-
 {% endblock %}
