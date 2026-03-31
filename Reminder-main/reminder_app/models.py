@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import datetime, time as dt_time
-
+from django.db import models
 from .recurrence import make_aware_safe
 
 
@@ -210,3 +210,27 @@ class ActivityLog(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.action} - {self.status}"
+    
+#-------------------------------------------
+#-----------FAQ------------------------------
+#--------------------------------------------
+class FAQ(models.Model):
+    question = models.CharField(max_length=255)
+    answer = models.TextField()
+    is_active = models.BooleanField(
+        default=True, 
+        help_text="Uncheck to hide this FAQ from the website without deleting it."
+    )
+    sort_order = models.IntegerField(
+        default=0, 
+        help_text="Lower numbers appear first (e.g., 1 goes above 2)."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', '-created_at'] # Sorts by order, then newest first
+        verbose_name = "FAQ"
+        verbose_name_plural = "FAQs"
+
+    def __str__(self):
+        return self.question

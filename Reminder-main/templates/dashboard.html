@@ -3,8 +3,8 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+<script src="{% static "JS\chart.js" %}"></script>
+  
 {# Data for Charts — update-safe JSON scripts #}
 <div id="data-container">
     {{ interval_data|json_script:"interval-data" }}
@@ -145,7 +145,7 @@
       let val = item[keyName];
       if (!val) return;
       
-      // Standardize to Capitalized to match the switch case (e.g., 'active' -> 'Active')
+      // Standardize to Capitalized (e.g., 'once' -> 'Once', 'active' -> 'Active')
       let label = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
       groups[label] = (groups[label] || 0) + (item.count || 1);
     });
@@ -156,16 +156,24 @@
     };
   }
 
-  // --- Unified Color Palette ---
-  // These HEX codes perfectly match your Calendar's getColorByStatus function
+  // --- Unified Color Palettes (Matched to Django Choices) ---
+  const recurrenceColorMap = {
+    'Once':    '#64748b', // Slate-500
+    'Daily':   '#6366f1', // Indigo-500
+    'Weekly':  '#8b5cf6', // Violet-500
+    'Monthly': '#ec4899', // Pink-500
+    'Yearly':  '#f59e0b', // Amber-500
+    'Default': '#94a3b8' 
+  };
+
   const statusColorMap = {
-    'Completed': '#22c55e', // Green-500
-    'Overdue':   '#ef4444', // Red-500
-    'Paused':    '#f59e0b', // Amber-500
-    'Notified':  '#3b82f6', // Blue-500
     'Active':    '#6366f1', // Indigo-500
+    'Notified':  '#3b82f6', // Blue-500
+    'Overdue':   '#ef4444', // Red-500
+    'Completed': '#22c55e', // Green-500
+    'Paused':    '#f59e0b', // Amber-500
     'Failed':    '#7f1d1d', // Dark Red
-    'Default':   '#94a3b8'  // Slate Gray
+    'Default':   '#94a3b8'
   };
 
   let intervalChartInstance = null;
@@ -178,6 +186,8 @@
     // 1. Recurrence Bar Chart
     const iGrouped = groupChartData(iDataRaw, 'recurrence_type');
     if (iGrouped.labels.length) {
+      const barColors = iGrouped.labels.map(label => recurrenceColorMap[label] || recurrenceColorMap['Default']);
+
       intervalChartInstance = new Chart(document.getElementById('intervalChart'), {
         type: 'bar',
         data: {
@@ -185,8 +195,8 @@
           datasets: [{
             label: 'Reminders',
             data: iGrouped.counts,
-            backgroundColor: '#818cf8', // Indigo-400 for a softer bar look
-            hoverBackgroundColor: '#6366f1',
+            backgroundColor: barColors,
+            hoverOpacity: 0.8,
             borderRadius: 8,
             barThickness: 32
           }]
@@ -274,7 +284,6 @@
 
   // Auto-Updater
   setInterval(() => {
-    // Do not auto-refresh if tab is hidden, if a delete dialog is open, or if the user is actively searching
     if (document.hidden || updatePaused || (searchInput && searchInput.value.length > 0)) return;
 
     fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })

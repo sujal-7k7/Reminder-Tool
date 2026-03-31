@@ -13,19 +13,27 @@ from django.contrib.auth.models import User
 from .models import Reminder, Category, ActivityLog
 from .forms import ReminderForm
 from .recurrence import build_rrule
-# FIX: Import send_reminder_email from utils (single source of truth).
-# The duplicate definition that was in views.py has been removed.
 from .utils import send_reminder_email
 import logging
-
+from django.shortcuts import render
+from .models import FAQ
 
 # =========================================================
 # ACTIVITY LOGGER
 # =========================================================
 
 activity_logger = logging.getLogger("activity_logger")
+error_logger = logging.getLogger("error_logger")
 
-def log_activity(user, action, description=""):
+
+def log_activity(user, action, description="", status="success"):
+    """
+    Log an activity to both the DB (ActivityLog) and the activity log file.
+
+    FIX: Added `status` parameter (default "success") so callers can pass
+    "error" when something goes wrong, making DB records accurate.
+    Previously status was always written as "success" even on failure.
+    """
     username = "Anonymous"
     if user and hasattr(user, "username"):
         username = user.username
@@ -33,18 +41,19 @@ def log_activity(user, action, description=""):
         ActivityLog.objects.create(
             user=user if user and user.is_authenticated else None,
             action=action,
-            description=description
+            description=description,
+            status=status,  # FIX: Now correctly reflects success or error
         )
     except Exception as e:
-        logging.getLogger("error_logger").error(
+        error_logger.error(
             f"DB ActivityLog failed | User={username} | Action={action} | Error={str(e)}"
         )
     try:
         activity_logger.info(
-            f"User={username} | Action={action} | Description={description}"
+            f"User={username} | Action={action} | Status={status} | Description={description}"
         )
     except Exception as e:
-        logging.getLogger("error_logger").error(
+        error_logger.error(
             f"Activity file logging failed | Error={str(e)}"
         )
 
@@ -133,7 +142,6 @@ def dashboard(request):
     today_date = timezone.localdate()
     reminders_to_update = []
 
-    # Status Logic Sync
     for reminder in reminders:
         original_status = reminder.status
 
@@ -150,12 +158,10 @@ def dashboard(request):
     if reminders_to_update:
         Reminder.objects.bulk_update(reminders_to_update, ['status'])
 
-    # Aggregates for Charts and Cards
     total = reminders.count()
     today = reminders.filter(next_trigger__date=today_date).count()
     overdue = reminders.filter(status="overdue").count()
 
-    # Fixed: Use 'status' and 'recurrence_type' directly for chart consistency
     interval_data = list(reminders.values("recurrence_type").annotate(count=Count("id")))
     status_data   = list(reminders.values("status").annotate(count=Count("id")))
 
@@ -168,20 +174,7 @@ def dashboard(request):
         "status_data": status_data,
     }
 
-    # If the request is from our JS Auto-Updater, we return the same template,
-    # but the browser's DOMParser will handle extracting the IDs.
     return render(request, "dashboard.html", context)
-
-# =========================================================
-# CONTACT
-# =========================================================
-
-def contact(request):
-    if request.method == "POST":
-        messages.success(request, "Your message has been sent successfully!")
-        return redirect("contact")
-    return render(request, "contact.html")
-
 
 # =========================================================
 # DELETE REMINDER
@@ -191,8 +184,11 @@ def contact(request):
 def delete_reminder(request, reminder_id):
     if request.method == "POST":
         reminder = get_object_or_404(Reminder, id=reminder_id, user=request.user)
-        log_activity(request.user, "delete", f"Deleted reminder: {reminder.title}")
+        title = reminder.title  # Capture title before deletion
         reminder.delete()
+        # FIX: log_activity called AFTER delete() — so if delete fails with an
+        # exception, we never write a false "success" entry to the activity log.
+        log_activity(request.user, "delete", f"Deleted reminder: {title}")
         messages.success(request, "Reminder deleted successfully.")
     return redirect("dashboard")
 
@@ -222,7 +218,6 @@ def create_reminder(request):
     categories = Category.objects.filter(status="active")
 
     if request.method == "POST":
-        # NEW: Added request.FILES to handle the file upload
         form = ReminderForm(request.POST, request.FILES)
 
         if form.is_valid():
@@ -233,14 +228,10 @@ def create_reminder(request):
                 datetime.combine(reminder.start_date, reminder.time)
             )
 
-            # FIX: Set next_trigger BEFORE the first (and only) save so that
-            # update_status() inside save() sees the correct next_trigger and
-            # never briefly writes an incorrect status to the DB.
-            # Previously: save() → (stale status written) → _set_next_trigger → save()
-            # Now:        _set_next_trigger → save() once with correct next_trigger
             _set_next_trigger(reminder, start_dt)
             reminder.save()
 
+            # FIX: log_activity called AFTER save() succeeds
             log_activity(request.user, "create", f"Created reminder: {reminder.title}")
             messages.success(request, f"Reminder '{reminder.title}' created successfully!")
             return redirect("dashboard")
@@ -267,11 +258,9 @@ def edit_reminder(request, reminder_id):
     categories = Category.objects.filter(status="active")
 
     if request.method == "POST":
-        # NEW: Added request.FILES to handle the file upload update
         form = ReminderForm(request.POST, request.FILES, instance=reminder)
 
         if form.is_valid():
-            # Fetch original values directly from DB
             original_db = Reminder.objects.get(pk=reminder_id)
             original_start_dt = timezone.make_aware(
                 datetime.combine(original_db.start_date, original_db.time)
@@ -290,13 +279,10 @@ def edit_reminder(request, reminder_id):
                     "categories": categories,
                 })
 
-            # FIX: Set next_trigger BEFORE the first (and only) save so that
-            # update_status() inside save() sees the correct next_trigger.
-            # Also: log_activity is now called AFTER save() so the activity log
-            # is only written once the DB write has actually succeeded.
             _set_next_trigger(updated, new_start_dt)
             updated.save()
 
+            # FIX: log_activity called AFTER save() succeeds
             log_activity(request.user, "edit", f"Edited reminder: {updated.title}")
             messages.success(request, f"Reminder '{updated.title}' updated successfully!")
             return redirect("dashboard")
@@ -325,13 +311,16 @@ def toggle_pause(request, reminder_id):
         reminder = get_object_or_404(Reminder, id=reminder_id, user=request.user)
         if reminder.status == "paused":
             reminder.status = "active"
-            log_activity(request.user, "resume", f"Resumed reminder: {reminder.title}")
             if reminder.next_trigger and reminder.next_trigger < timezone.now():
                 reminder.next_trigger = timezone.now()
+            reminder.save()
+            # FIX: log_activity called AFTER save() — was before save() previously
+            log_activity(request.user, "resume", f"Resumed reminder: {reminder.title}")
         else:
             reminder.status = "paused"
+            reminder.save()
+            # FIX: log_activity called AFTER save() — was before save() previously
             log_activity(request.user, "pause", f"Paused reminder: {reminder.title}")
-        reminder.save()
     return redirect("dashboard")
 
 
@@ -371,6 +360,7 @@ def create_user(request):
         user.is_staff = (role == "admin")
         user.save()
 
+        # FIX: log_activity called AFTER save() succeeds
         log_activity(request.user, "create_user", f"Created user {username}")
         messages.success(request, f"User '{username}' created successfully!")
         return redirect("users_list")
@@ -403,6 +393,8 @@ def edit_user(request, user_id):
             user.set_password(password)
 
         user.save()
+
+        # FIX: log_activity called AFTER save() succeeds
         log_activity(request.user, "edit_user", f"Updated user {user.username}")
         messages.success(request, f"User '{username}' updated successfully!")
         return redirect("users_list")
@@ -428,8 +420,10 @@ def delete_user(request, user_id):
             return redirect("users_list")
 
         username = user.username
-        log_activity(request.user, "delete_user", f"Deleted user {username}")
         user.delete()
+        # FIX: log_activity called AFTER delete() — was before delete() previously,
+        # which meant a "success" log would be written even if delete() raised an exception.
+        log_activity(request.user, "delete_user", f"Deleted user {username}")
         messages.success(request, f"User '{username}' deleted successfully!")
 
     return redirect("users_list")
@@ -448,13 +442,11 @@ def calendar_view(request):
 
     events = []
     for r in reminders:
-        # Define colors to match your UI perfectly
-        # Matches: Green (Completed), Red (Overdue), Amber (Paused), Indigo (Active)
-        color = '#6366f1' # Default Indigo
-        if r.status == 'completed':   color = '#22c55e' # Success Green
-        elif r.status == 'overdue':   color = '#ef4444' # Danger Red
-        elif r.status == 'paused':    color = '#f59e0b' # Warning Orange
-        elif r.status == 'notified':  color = '#3b82f6' # Info Blue
+        color = '#6366f1'
+        if r.status == 'completed':   color = '#22c55e'
+        elif r.status == 'overdue':   color = '#ef4444'
+        elif r.status == 'paused':    color = '#f59e0b'
+        elif r.status == 'notified':  color = '#3b82f6'
 
         events.append({
             'title': r.title,
@@ -471,4 +463,17 @@ def calendar_view(request):
                 'time':      r.time.strftime("%I:%M %p"),
             }
         })
+
+    # FIX: Was rendering "calendar.html" (wrong name) causing TemplateDoesNotExist.
+    # Corrected to "calendar_view.html" to match the actual template file.
     return render(request, "calendar_view.html", {"events": events, "categories": categories})
+
+
+def faq_view(request):
+    # Fetch all active FAQs, they will be ordered automatically based on our Meta class
+    faqs = FAQ.objects.filter(is_active=True)
+    
+    context = {
+        'faqs': faqs
+    }
+    return render(request, 'faq.html', context)

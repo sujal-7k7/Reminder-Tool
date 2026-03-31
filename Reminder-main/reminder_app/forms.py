@@ -305,3 +305,21 @@ class ReminderForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+    
+    def clean_attachment(self):
+        attachment = self.cleaned_data.get('attachment')
+        if attachment:
+            # 1. Extension Check
+            allowed_exts = ['pdf', 'txt', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']
+            import os
+            ext = os.path.splitext(attachment.name)[1][1:].lower()
+            
+            if ext not in allowed_exts:
+                raise forms.ValidationError(f"Allowed types: {', '.join(allowed_exts)}")
+            
+            # 2. Email-Safe Size Check: 20MB
+            # 20 * 1024 * 1024 = 20,971,520 bytes
+            if attachment.size > 20 * 1024 * 1024:
+                raise forms.ValidationError("File is too large for email delivery. Please keep it under 20MB.")
+                
+        return attachment

@@ -55,7 +55,7 @@ ROOT_URLCONF = 'reminder_project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / "templates"],   # ← added here
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -85,11 +85,9 @@ DATABASES = {
         'OPTIONS': {
             'driver': 'ODBC Driver 18 for SQL Server',
             'extra_params': 'Encrypt=yes;TrustServerCertificate=yes;',
-
         },
     }
 }
-
 
 
 # Password validation
@@ -192,7 +190,14 @@ LOGGING = {
             "filename": ERROR_LOG_FILE,
             "encoding": "utf-8",
             "formatter": "verbose",
-            "level": "ERROR",
+            "level": "WARNING",  # FIX: Capture WARNING too, not just ERROR
+        },
+
+        # FIX: Added console handler for development visibility
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+            "level": "DEBUG",
         },
 
     },
@@ -200,26 +205,30 @@ LOGGING = {
     "loggers": {
 
         "activity_logger": {
-            "handlers": ["activity_file"],
+            "handlers": ["activity_file", "console"],  # FIX: Added console
             "level": "INFO",
             "propagate": False,
         },
 
         "error_logger": {
-            "handlers": ["error_file"],
-            "level": "ERROR",
+            "handlers": ["error_file", "console"],  # FIX: Added console
+            "level": "WARNING",  # FIX: Capture WARNING too
             "propagate": False,
         },
 
         "django": {
-            "handlers": ["error_file"],
-            "level": "ERROR",
-            "propagate": True,
+            "handlers": ["error_file", "console"],
+            "level": "WARNING",  # FIX: Capture WARNING too
+            "propagate": False,  # FIX: Was True — caused every error to be logged TWICE
+                                 # (once by "django" logger, once by root "" logger)
         },
 
+        # FIX: Root logger now only handles truly unexpected loggers.
+        # Removed error_file handler here to prevent duplicate entries.
+        # Django errors are handled by the "django" logger above.
         "": {
-            "handlers": ["error_file"],
-            "level": "ERROR",
+            "handlers": ["console"],
+            "level": "WARNING",
         },
 
     },

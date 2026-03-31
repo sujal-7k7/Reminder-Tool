@@ -13,7 +13,6 @@ urlpatterns = [
     path("delete/<int:reminder_id>/", views.delete_reminder, name="delete_reminder"),
     path("pause/<int:reminder_id>/", views.toggle_pause, name="toggle_pause"),
     path("logout/", views.logout_view, name="logout"),
-    path("contact/", views.contact, name="contact"),
     path("category-master/", views.category_master, name="category_master"),
     path("create-user/", views.create_user, name="create_user"),
     path("profile/", views.profile, name="profile"),
@@ -21,6 +20,7 @@ urlpatterns = [
     path("edit-user/<int:user_id>/", views.edit_user, name="edit_user"),
     path("delete-user/<int:user_id>/", views.delete_user, name="delete_user"),
     path('calendar/', views.calendar_view, name='calendar_view'),
+    path('faq/', views.faq_view, name='faq'),
 ]
 
 # --- Files Attachments ---

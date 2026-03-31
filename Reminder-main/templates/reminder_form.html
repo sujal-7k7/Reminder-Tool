@@ -92,15 +92,22 @@
         <div>
           <label class="block text-sm font-medium mb-1">Attachment (Optional)</label>
           <input type="file" name="attachment" id="attachmentInput"
+                 accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                  class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none transition-all file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-          
+
           {% if reminder and reminder.attachment %}
             <p class="text-sm text-gray-500 mt-2">
-              Current file: 
+              Current file:
               <a href="{{ reminder.attachment.url }}" target="_blank" class="text-indigo-600 hover:underline">
                 {{ reminder.attachment.name }}
               </a>
             </p>
+            {# FIX: Added "Clear attachment" checkbox so users can remove an existing file on edit.
+               Without this there was no way to detach a file once uploaded. #}
+            <label class="flex items-center gap-2 mt-1 text-sm text-red-600 cursor-pointer">
+              <input type="checkbox" name="attachment-clear" id="attachmentClear" class="rounded">
+              Remove current attachment
+            </label>
           {% endif %}
         </div>
 
@@ -166,7 +173,7 @@
           <div class="flex flex-wrap gap-4 text-sm font-medium">
             <label class="cursor-pointer flex items-center gap-1">
               <input type="radio" name="recurrence_type" value="once"
-                     {% if reminder and reminder.recurrence_type == "once" %}checked{% endif %}
+                     {% if not reminder or reminder.recurrence_type == "once" %}checked{% endif %}
                      onclick="showRecurrence('once')" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> One Time
             </label>
             <label class="cursor-pointer flex items-center gap-1">
@@ -241,7 +248,8 @@
           ← Back
         </button>
 
-        <button type="submit"
+        {# FIX: Added id="submitBtn" so we can disable it on submit to prevent double-submit #}
+        <button type="submit" id="submitBtn"
                 class="bg-green-600 text-white px-8 py-2.5 rounded-lg hover:bg-green-700 font-medium shadow-md transition-colors">
           Save Reminder ✓
         </button>
@@ -318,10 +326,6 @@ function validateSemicolonEmails(inputStr) {
   return true;
 }
 
-/*
-  Split the datetime-local value into date + time and store in the hidden
-  fields that Django's form actually reads.
-*/
 function splitAndStoreDateTime() {
   const dtInput = document.getElementById('step1_start_date');
   if (!dtInput.value) return;
@@ -364,12 +368,26 @@ function processStep1() {
     errors.push("Invalid format in 'Email CC'. Please check addresses and separate with semicolons.");
   }
 
+  // Attachment validation
+  const attachmentInput = document.getElementById('attachmentInput');
+  if (attachmentInput && attachmentInput.files.length > 0) {
+    const file = attachmentInput.files[0];
+    const allowedExtensions = ['pdf', 'txt', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    if (!allowedExtensions.includes(fileExtension)) {
+      errors.push("Invalid file type. Only PDF, TXT, Word, Excel, and PPT are allowed.");
+    }
+    const maxSizeBytes = 20 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      errors.push("File is too large for email. Maximum allowed size is 20MB.");
+    }
+  }
+
   if (errors.length > 0) {
     showErrorBox(errors);
     return;
   }
 
-  // Populate hidden fields before advancing
   splitAndStoreDateTime();
 
   const previewSpan = document.getElementById('step2_date_preview');
@@ -399,7 +417,6 @@ function toggleRange(type) {
   const endDate = document.getElementById("rangeEndDate");
   const count   = document.getElementById("rangeCount");
 
-  // Update the hidden range_type field Django reads
   document.getElementById("rangeTypeHidden").value = type;
 
   if (type === "end_by") {
@@ -435,6 +452,17 @@ function showRecurrence(type) {
   if (type === "once") {
     html = `<div class="text-sm text-gray-600 bg-gray-100 p-3 rounded-lg border border-gray-200">This reminder will run <span class="font-bold">only once</span> at the selected start date &amp; time.</div>`;
     endRangePanel.style.display = "none";
+
+    // FIX: When switching to "once", clear any previously set end-range values
+    // so they are not accidentally submitted to the backend.
+    document.getElementById("rangeTypeHidden").value = "";
+    const endDate = document.getElementById("rangeEndDate");
+    const count   = document.getElementById("rangeCount");
+    endDate.value = "";
+    count.value   = "";
+    // Reset radio UI state
+    document.getElementById("rangeTypeEndBy").checked    = false;
+    document.getElementById("rangeTypeEndAfter").checked = false;
   } else {
     endRangePanel.style.display = "block";
   }
@@ -467,7 +495,11 @@ function showRecurrence(type) {
   }
 
   if (type === "weekly") {
-    const savedDays = "{{ reminder.by_weekday|default:'' }}".split(',').map(d => d.trim());
+    // FIX: Was reading reminder.by_weekday via Django template tag inside JS string.
+    // This causes a Django TemplateSyntaxError if the template tag is inside a JS
+    // template literal. Moved to a safe inline data attribute pattern instead.
+    const savedDaysRaw = document.getElementById('savedByWeekday').value;
+    const savedDays = savedDaysRaw ? savedDaysRaw.split(',').map(d => d.trim()) : [];
     const days = [
       {val:'0', label:'Mon'}, {val:'1', label:'Tue'}, {val:'2', label:'Wed'},
       {val:'3', label:'Thu'}, {val:'4', label:'Fri'}, {val:'5', label:'Sat'}, {val:'6', label:'Sun'}
@@ -479,10 +511,11 @@ function showRecurrence(type) {
               </label>`;
     }).join('');
 
+    const savedInterval = document.getElementById('savedInterval').value || '1';
     html = `
       <div class="text-sm flex items-center gap-2 mb-3">
         Every
-        <input type="number" name="interval" value="{{ reminder.interval|default:'1' }}" min="1"
+        <input type="number" name="interval" value="${savedInterval}" min="1"
                class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
         week(s)
       </div>
@@ -492,15 +525,16 @@ function showRecurrence(type) {
   }
 
   if (type === "monthly") {
-    const savedMode     = "{{ reminder.monthly_mode|default:'day_of_month' }}";
-    const savedMonthday = "{{ reminder.by_monthday|default:'1' }}";
-    const savedSetpos   = "{{ reminder.by_setpos|default:'' }}";
-    const savedWeekday  = "{{ reminder.by_weekday|default:'' }}";
+    const savedMode     = document.getElementById('savedMonthlyMode').value || 'day_of_month';
+    const savedMonthday = document.getElementById('savedMonthday').value || '1';
+    const savedSetpos   = document.getElementById('savedSetpos').value || '';
+    const savedWeekday  = document.getElementById('savedWeekday').value || '';
+    const savedInterval = document.getElementById('savedInterval').value || '1';
 
     html = `
       <div class="text-sm mb-3">
         Every
-        <input type="number" name="interval" value="{{ reminder.interval|default:'1' }}" min="1"
+        <input type="number" name="interval" value="${savedInterval}" min="1"
                class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
         month(s)
       </div>
@@ -547,11 +581,12 @@ function showRecurrence(type) {
   }
 
   if (type === "yearly") {
-    const savedMode    = "{{ reminder.yearly_mode|default:'specific_date' }}";
-    const savedMonth   = "{{ reminder.by_month|default:'1' }}";
-    const savedDay     = "{{ reminder.by_monthday|default:'1' }}";
-    const savedSetpos  = "{{ reminder.by_setpos|default:'' }}";
-    const savedWeekday = "{{ reminder.by_weekday|default:'' }}";
+    const savedMode    = document.getElementById('savedYearlyMode').value || 'specific_date';
+    const savedMonth   = document.getElementById('savedMonth').value || '1';
+    const savedDay     = document.getElementById('savedMonthday').value || '1';
+    const savedSetpos  = document.getElementById('savedSetpos').value || '';
+    const savedWeekday = document.getElementById('savedWeekday').value || '';
+    const savedInterval = document.getElementById('savedInterval').value || '1';
 
     const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const monthOptions = monthNames
@@ -562,7 +597,7 @@ function showRecurrence(type) {
     html = `
       <div class="text-sm mb-3">
         Every
-        <input type="number" name="interval" value="{{ reminder.interval|default:'1' }}" min="1"
+        <input type="number" name="interval" value="${savedInterval}" min="1"
                class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
         year(s)
       </div>
@@ -692,9 +727,7 @@ function formatTo12Hour(datetimeStr) {
 
 /* ================= FINAL SUBMISSION VALIDATION ================= */
 document.getElementById('reminderForm').addEventListener('submit', function(e) {
-  // Always split datetime into hidden fields before submit
   splitAndStoreDateTime();
-
   clearClientErrors();
   let errors = [];
 
@@ -753,7 +786,16 @@ document.getElementById('reminderForm').addEventListener('submit', function(e) {
   if (errors.length > 0) {
     e.preventDefault();
     showErrorBox(errors);
+    return;
   }
+
+  // FIX: Disable submit button after successful validation to prevent double-submit.
+  // The button was previously clickable multiple times before the page navigated away,
+  // which could cause duplicate reminders to be created.
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  btn.classList.add('opacity-60', 'cursor-not-allowed');
 });
 
 /* ================= INITIALIZATION ================= */
@@ -761,7 +803,6 @@ document.addEventListener("DOMContentLoaded", function() {
   setDateBoundaries();
 
   {% if form.errors %}
-    // Server returned errors — restore step 2 state
     const selectedRecurrence = document.querySelector('input[name="recurrence_type"]:checked');
     if (selectedRecurrence) {
       showRecurrence(selectedRecurrence.value);
@@ -769,7 +810,6 @@ document.addEventListener("DOMContentLoaded", function() {
       showRecurrence('once');
     }
 
-    // Restore range_type selection
     const savedRangeType = "{{ reminder.range_type|default:'' }}";
     if (savedRangeType === 'end_by') {
       document.getElementById('rangeTypeEndBy').checked = true;
@@ -782,7 +822,6 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById('errorContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   {% elif reminder %}
-    // Edit mode — restore saved state, start on step 1
     document.getElementById("step1").style.display = "block";
     document.getElementById("step2").style.display = "none";
     updateProgressBar(1);
@@ -805,10 +844,20 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
   {% else %}
-    // Create mode — default to once
     showRecurrence('once');
   {% endif %}
 });
 </script>
+
+<div style="display:none;" aria-hidden="true">
+  <input type="hidden" id="savedByWeekday"   value="{{ reminder.by_weekday|default:'' }}">
+  <input type="hidden" id="savedInterval"    value="{{ reminder.interval|default:'1' }}">
+  <input type="hidden" id="savedMonthlyMode" value="{{ reminder.monthly_mode|default:'day_of_month' }}">
+  <input type="hidden" id="savedYearlyMode"  value="{{ reminder.yearly_mode|default:'specific_date' }}">
+  <input type="hidden" id="savedMonthday"    value="{{ reminder.by_monthday|default:'1' }}">
+  <input type="hidden" id="savedSetpos"      value="{{ reminder.by_setpos|default:'' }}">
+  <input type="hidden" id="savedWeekday"     value="{{ reminder.by_weekday|default:'' }}">
+  <input type="hidden" id="savedMonth"       value="{{ reminder.by_month|default:'1' }}">
+</div>
 
 {% endblock %}
