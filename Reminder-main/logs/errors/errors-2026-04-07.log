@@ -1,0 +1,6 @@
+2026-04-07 09:16:50,905 | WARNING | django.request | Not Found: /favicon.ico
+2026-04-07 09:16:51,072 | WARNING | django.server | "GET /favicon.ico HTTP/1.1" 404 6755
+2026-04-07 09:16:53,993 | WARNING | django.request | Not Found: /favicon.ico
+2026-04-07 09:16:54,005 | WARNING | django.server | "GET /favicon.ico HTTP/1.1" 404 6755
+2026-04-07 09:17:39,674 | WARNING | django.request | Not Found: /favicon.ico
+2026-04-07 09:17:39,742 | WARNING | django.server | "GET /favicon.ico HTTP/1.1" 404 6755
