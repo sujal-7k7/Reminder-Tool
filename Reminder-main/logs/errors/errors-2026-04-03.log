@@ -1,0 +1,6 @@
+2026-04-03 09:51:43,823 | WARNING | django.request | Not Found: /favicon.ico
+2026-04-03 09:51:43,866 | WARNING | django.server | "GET /favicon.ico HTTP/1.1" 404 6492
+2026-04-03 10:03:34,119 | WARNING | django.request | Not Found: /.well-known/appspecific/com.chrome.devtools.json
+2026-04-03 10:03:34,286 | WARNING | django.server | "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 6603
+2026-04-03 10:23:09,350 | WARNING | django.request | Not Found: /favicon.ico
+2026-04-03 10:23:09,710 | WARNING | django.server | "GET /favicon.ico HTTP/1.1" 404 6492

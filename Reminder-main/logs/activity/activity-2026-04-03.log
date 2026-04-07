@@ -1,0 +1,6 @@
+2026-04-03 09:53:00,893 | INFO | activity_logger | User=sujal | Action=login | Status=success | Description=User logged in
+2026-04-03 10:07:21,297 | INFO | activity_logger | User=sujal | Action=login | Status=success | Description=User logged in
+2026-04-03 10:23:24,082 | INFO | activity_logger | User=sujal | Action=login | Status=success | Description=User logged in
+2026-04-03 10:25:13,405 | INFO | activity_logger | User=sujal | Action=create | Status=success | Description=Created reminder: asdf
+2026-04-03 23:00:38,680 | INFO | activity_logger | User=sujal | Action=login | Status=success | Description=User logged in
+2026-04-03 23:06:41,657 | INFO | activity_logger | User=sujal | Action=logout | Status=success | Description=User logged out

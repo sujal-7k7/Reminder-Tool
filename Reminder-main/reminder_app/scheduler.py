@@ -1,12 +1,23 @@
 import time
 import logging
+import signal
+import sys
 from django.utils import timezone
-from django.db import transaction
+from django.db import transaction, close_old_connections
 from reminder_app.models import Reminder
 from reminder_app.recurrence import build_rrule
 from reminder_app.utils import send_reminder_email
 
 logger = logging.getLogger("scheduler_logger")
+
+# --- Graceful Shutdown Setup ---
+_shutdown_requested = False
+
+def _handle_shutdown_signal(signum, frame):
+    """Catches server restart commands and allows the current email to finish."""
+    global _shutdown_requested
+    logger.info("Shutdown signal received. Finishing current batch before exiting...")
+    _shutdown_requested = True
 
 
 def _calculate_next_trigger(reminder, now):
@@ -55,7 +66,7 @@ def _process_reminder(reminder, now):
         locked.next_trigger = next_trigger
 
         # ==========================================
-        # 🚨 THE FIX: CRITICAL STATUS LOGIC 🚨
+        # THE FIX: CRITICAL STATUS LOGIC 
         # ==========================================
         if next_trigger is None:
             # No more occurrences left
@@ -76,25 +87,43 @@ def _process_reminder(reminder, now):
 
 
 def start_scheduler():
+    # Register the signals for graceful shutdown
+    signal.signal(signal.SIGINT, _handle_shutdown_signal)
+    signal.signal(signal.SIGTERM, _handle_shutdown_signal)
+
     logger.info(
         f"--- Continuous Scheduler Started at "
         f"{timezone.now().strftime('%Y-%m-%d %H:%M:%S')} ---"
     )
     logger.info("Running in background. Checking for emails every 2 seconds...")
 
-    while True:
+    while not _shutdown_requested:
         try:
+            # CRITICAL: Prevent the database from dropping idle connections
+            close_old_connections()
+
             now = timezone.now()
 
+            # CRITICAL: Batch processing to prevent memory bloat
             due_reminders = Reminder.objects.filter(
                 status='active',
                 next_trigger__lte=now
-            )
+            ).order_by('next_trigger')[:50] 
+
+            # If nothing is due, sleep and check again
+            if not due_reminders:
+                time.sleep(2)
+                continue
 
             for reminder in due_reminders:
+                # Stop processing the batch if the server is trying to shut down
+                if _shutdown_requested:
+                    break 
+
                 logger.info(
                     f"[{now.strftime('%H:%M:%S')}] Processing ID: {reminder.id} | {reminder.title}"
                 )
+                
                 try:
                     _process_reminder(reminder, now)
 
@@ -123,5 +152,6 @@ def start_scheduler():
 
         except Exception as e:
             logger.exception(f"Critical scheduler loop error: {e}")
+            time.sleep(5) # Add a small backoff if the database is temporarily unreachable
 
-        time.sleep(2)
+    logger.info("Scheduler has successfully shut down.")

@@ -8,90 +8,76 @@
 
 <div class="bg-white shadow-xl rounded-2xl p-8 max-w-xl mx-auto">
 
-<h2 class="text-2xl font-semibold mb-6">
+    <h2 class="text-2xl font-semibold mb-6 text-gray-800">
+        {% if edit_mode %}Edit User{% else %}Create New User{% endif %}
+    </h2>
 
-{% if edit_mode %}
-Edit User
-{% else %}
-Create New User
-{% endif %}
+    <form method="POST" class="space-y-5" autocomplete="off">
+        {% csrf_token %}
 
-</h2>
+        <div>
+            <label for="f-username" class="block text-sm font-medium text-gray-700 mb-1">Username <span class="text-red-500">*</span></label>
+            <input type="text"
+                id="f-username"
+                name="username"
+                required
+                maxlength="150"
+                autocomplete="off"
+                value="{% if edit_mode %}{{ edit_user.username }}{% endif %}"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none transition">
+        </div>
 
-<form method="POST" class="space-y-5">
-{% csrf_token %}
+        <div>
+            <label for="f-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input type="email"
+                id="f-email"
+                name="email"
+                autocomplete="off"
+                value="{% if edit_mode %}{{ edit_user.email }}{% endif %}"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none transition">
+        </div>
 
-<div>
-<label class="block text-sm mb-1">Username</label>
+        <div>
+            <label for="f-password" class="block text-sm font-medium text-gray-700 mb-1">
+                {% if edit_mode %}
+                    New Password <span class="text-xs text-gray-400 font-normal">(leave blank to keep same)</span>
+                {% else %}
+                    Password <span class="text-red-500">*</span>
+                {% endif %}
+            </label>
+            <input type="password"
+                id="f-password"
+                name="password"
+                autocomplete="new-password"
+                {% if not edit_mode %}required{% endif %}
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none transition">
+        </div>
 
-<input type="text"
-name="username"
-required
-value="{% if edit_mode %}{{ edit_user.username }}{% endif %}"
-class="w-full border rounded-lg px-3 py-2">
+        <div>
+            <label for="f-role" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <select id="f-role"
+                name="role"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                <option value="user" {% if edit_mode and not edit_user.is_staff %}selected{% endif %}>User</option>
+                <option value="admin" {% if edit_mode and edit_user.is_staff %}selected{% endif %}>Admin</option>
+            </select>
+            
+            {% if edit_mode and edit_user.is_superuser %}
+                <p class="text-xs text-orange-600 mt-1">Note: This is a Superuser. Modifying their role here will not remove superuser privileges.</p>
+            {% endif %}
+        </div>
 
-</div>
+        <div class="flex items-center justify-between mt-8 pt-6 border-t border-gray-100">
+            <a href="{% url 'users_list' %}" class="text-gray-500 hover:text-gray-800 font-medium px-4 py-2 transition">
+                Cancel
+            </a>
+            <button type="submit"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-2.5 rounded-lg font-medium shadow-sm transition">
+                {% if edit_mode %}Update User{% else %}Create User{% endif %}
+            </button>
+        </div>
 
-
-<div>
-<label class="block text-sm mb-1">Email</label>
-
-<input type="email"
-name="email"
-value="{% if edit_mode %}{{ edit_user.email }}{% endif %}"
-class="w-full border rounded-lg px-3 py-2">
-
-</div>
-
-
-<div>
-<label class="block text-sm mb-1">
-{% if edit_mode %}New Password (leave blank to keep same){% else %}Password{% endif %}
-</label>
-
-<input type="password"
-name="password"
-{% if not edit_mode %}required{% endif %}
-class="w-full border rounded-lg px-3 py-2">
-
-</div>
-
-
-<div>
-<label class="block text-sm mb-1">Role</label>
-
-<select name="role"
-class="w-full border rounded-lg px-3 py-2">
-
-<option value="user"
-{% if edit_mode and not edit_user.is_staff %}selected{% endif %}
->
-User
-</option>
-
-<option value="admin"
-{% if edit_mode and edit_user.is_staff %}selected{% endif %}
->
-Admin
-</option>
-
-</select>
-
-</div>
-
-
-<button type="submit"
-class="bg-indigo-600 text-white px-6 py-2 rounded-lg">
-
-{% if edit_mode %}
-Update User
-{% else %}
-Create User
-{% endif %}
-
-</button>
-
-</form>
+    </form>
 
 </div>
 

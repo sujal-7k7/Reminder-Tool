@@ -10,3 +10,5 @@
 2026-03-31 12:14:08,738 | INFO | activity_logger | User=sujal | Action=login | Status=success | Description=User logged in
 2026-03-31 12:23:12,140 | INFO | activity_logger | User=sujal | Action=login | Status=success | Description=User logged in
 2026-03-31 13:35:52,336 | INFO | activity_logger | User=sujal | Action=login | Status=success | Description=User logged in
+2026-03-31 13:38:21,133 | INFO | activity_logger | User=sujal | Action=login | Status=success | Description=User logged in
+2026-03-31 13:44:26,768 | INFO | activity_logger | User=sujal | Action=logout | Status=success | Description=User logged out

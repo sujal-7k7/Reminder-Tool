@@ -1,10 +1,7 @@
 {% extends "base.html" %}
-{% block title %}
-  {% if reminder %}Edit Reminder{% else %}Create Reminder{% endif %}
-{% endblock %}
+{% block title %}{% if reminder %}Edit Reminder{% else %}Create Reminder{% endif %}{% endblock %}
 
 {% block content %}
-
 <div class="bg-white shadow-xl rounded-2xl p-8 max-w-5xl mx-auto">
 
   <h2 class="text-2xl font-semibold text-gray-800 mb-6">
@@ -13,851 +10,935 @@
 
   <div class="mb-8 relative">
     <div class="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -translate-y-1/2 rounded-full"></div>
-    <div id="pb-progress" class="absolute top-1/2 left-0 w-0 h-1 bg-indigo-600 -translate-y-1/2 rounded-full transition-all duration-500 ease-in-out"></div>
+    <div id="pb-line" class="absolute top-1/2 left-0 h-1 bg-indigo-600 -translate-y-1/2 rounded-full transition-all duration-500 ease-in-out" style="width:0"></div>
     <div class="relative flex justify-between w-full z-10">
       <div class="flex flex-col items-center bg-white px-4">
-        <div id="pb-step1-circle" class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md transition-colors duration-300">1</div>
-        <span id="pb-step1-text" class="text-sm font-semibold text-indigo-700 mt-2 transition-colors duration-300">Basic Info</span>
+        <div id="pb-c1" class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md transition-colors duration-300">1</div>
+        <span id="pb-t1" class="text-sm font-semibold text-indigo-700 mt-2 transition-colors duration-300">Basic Info</span>
       </div>
       <div class="flex flex-col items-center bg-white px-4">
-        <div id="pb-step2-circle" class="w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-bold transition-colors duration-300">2</div>
-        <span id="pb-step2-text" class="text-sm font-semibold text-gray-400 mt-2 transition-colors duration-300">Recurrence</span>
+        <div id="pb-c2" class="w-10 h-10 rounded-full bg-gray-200 text-gray-50 flex items-center justify-center font-bold transition-colors duration-300">2</div>
+        <span id="pb-t2" class="text-sm font-semibold text-gray-400 mt-2 transition-colors duration-300">Recurrence</span>
       </div>
     </div>
-  </div>
-
-  <div id="errorContainer"
-       class="{% if form.errors %}{% else %}hidden {% endif %}mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg shadow-sm transition-all">
-    <p class="font-bold flex items-center gap-2">
-      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
-      </svg>
-      Please fix the following errors:
-    </p>
-    <ul id="errorList" class="list-disc ml-7 mt-2 text-sm space-y-1">
-      {% for error in form.non_field_errors %}
-        <li>{{ error }}</li>
-      {% endfor %}
-      {% for field in form %}
-        {% for error in field.errors %}
-          <li><span class="font-medium">{{ field.label }}:</span> {{ error }}</li>
-        {% endfor %}
-      {% endfor %}
-    </ul>
   </div>
 
   <form method="POST" id="reminderForm" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
 
-    <div id="step1" class="transition-opacity duration-300">
-
+    <div id="step1">
       <h3 class="text-lg font-semibold mb-4 text-gray-700">Basic Information</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-      <div class="grid grid-cols-2 gap-4">
-
-        <div>
-          <label class="block text-sm font-medium mb-1">Title *</label>
-          <input type="text" name="title" id="titleInput" required maxlength="200"
-                 value="{{ reminder.title|default:'' }}"
-                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+        <div class="flex flex-col">
+          <label for="f-title" class="block text-sm font-medium mb-1">Title <span class="text-red-500">*</span></label>
+          <input type="text" name="title" id="f-title" maxlength="200" required
+                 value="{% if form.is_bound %}{{ form.data.title }}{% else %}{{ reminder.title|default:'' }}{% endif %}"
+                 class="rf-input">
         </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1">Subject *</label>
-          <input type="text" name="subject" id="subjectInput" required maxlength="200"
-                 value="{{ reminder.subject|default:'' }}"
-                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+        <div class="flex flex-col">
+          <label for="f-subject" class="block text-sm font-medium mb-1">Subject <span class="text-red-500">*</span></label>
+          <input type="text" name="subject" id="f-subject" maxlength="200" required
+                 value="{% if form.is_bound %}{{ form.data.subject }}{% else %}{{ reminder.subject|default:'' }}{% endif %}"
+                 class="rf-input">
         </div>
 
-        <div class="col-span-2">
-          <label class="block text-sm font-medium mb-1">Purpose</label>
-          <textarea name="purpose" rows="2"
-                    class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">{{ reminder.purpose|default:'' }}</textarea>
+        <div class="col-span-1 md:col-span-2 flex flex-col">
+          <label for="f-purpose" class="block text-sm font-medium mb-1">Purpose</label>
+          <textarea name="purpose" id="f-purpose" rows="2" class="rf-input">{% if form.is_bound %}{{ form.data.purpose }}{% else %}{{ reminder.purpose|default:'' }}{% endif %}</textarea>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1">Category</label>
-          <select name="category"
-                  class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+        <div class="flex flex-col">
+          <label for="f-category" class="block text-sm font-medium mb-1">Category</label>
+          <select name="category" id="f-category" class="rf-input">
             <option value="">Select Category</option>
             {% for cat in categories %}
               <option value="{{ cat.id }}"
-                {% if reminder and reminder.category and reminder.category.id == cat.id %}selected{% endif %}>
+                {% if form.is_bound %}{% if form.data.category|stringformat:"s" == cat.id|stringformat:"s" %}selected{% endif %}
+                {% elif reminder and reminder.category_id == cat.id %}selected{% endif %}>
                 {{ cat.name }}
               </option>
             {% endfor %}
           </select>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1">Attachment (Optional)</label>
-          <input type="file" name="attachment" id="attachmentInput"
+        <div class="flex flex-col">
+          <label for="f-attachment" class="block text-sm font-medium mb-1">Attachment <span class="text-xs text-gray-400">(Optional)</span></label>
+          <input type="file" name="attachment" id="f-attachment"
                  accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none transition-all file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-
+                 class="rf-input file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
           {% if reminder and reminder.attachment %}
-            <p class="text-sm text-gray-500 mt-2">
-              Current file:
-              <a href="{{ reminder.attachment.url }}" target="_blank" class="text-indigo-600 hover:underline">
-                {{ reminder.attachment.name }}
-              </a>
+            <p class="text-xs text-gray-500 mt-1">
+              Current: <a href="{{ reminder.attachment.url }}" target="_blank" class="text-indigo-600 hover:underline">{{ reminder.attachment.name }}</a>
             </p>
-            {# FIX: Added "Clear attachment" checkbox so users can remove an existing file on edit.
-               Without this there was no way to detach a file once uploaded. #}
-            <label class="flex items-center gap-2 mt-1 text-sm text-red-600 cursor-pointer">
-              <input type="checkbox" name="attachment-clear" id="attachmentClear" class="rounded">
-              Remove current attachment
+            <label class="flex items-center gap-2 mt-1 text-xs text-red-600 cursor-pointer">
+              <input type="checkbox" name="attachment-clear" class="rounded"> Remove attachment
             </label>
           {% endif %}
         </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1">Start Date & Time *</label>
-          <input type="datetime-local" id="step1_start_date" required
-                 value="{% if reminder %}{{ reminder.start_date|date:'Y-m-d' }}T{{ reminder.time|time:'H:i' }}{% endif %}"
-                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
-          <input type="hidden" name="start_date" id="hidden_start_date"
-                 value="{% if reminder %}{{ reminder.start_date|date:'Y-m-d' }}{% endif %}">
-          <input type="hidden" name="time" id="hidden_time"
-                 value="{% if reminder %}{{ reminder.time|time:'H:i' }}{% endif %}">
+        <div class="flex flex-col">
+          <label for="f-datetime" class="block text-sm font-medium mb-1">Start Date &amp; Time <span class="text-red-500">*</span></label>
+          <input type="datetime-local" id="f-datetime" required class="rf-input"
+                 value="{% if form.is_bound and form.data.start_date and form.data.time %}{{ form.data.start_date }}T{{ form.data.time }}{% elif reminder %}{{ reminder.start_date|date:'Y-m-d' }}T{{ reminder.time|time:'H:i' }}{% endif %}">
+          <input type="hidden" name="start_date" id="h-start-date"
+                 value="{% if form.is_bound %}{{ form.data.start_date }}{% elif reminder %}{{ reminder.start_date|date:'Y-m-d' }}{% endif %}">
+          <input type="hidden" name="time" id="h-time"
+                 value="{% if form.is_bound %}{{ form.data.time }}{% elif reminder %}{{ reminder.time|time:'H:i' }}{% endif %}">
         </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            Email To * <span class="text-xs text-gray-500 font-normal">(Separate multiple with ';')</span>
-          </label>
-          <input type="text" name="email_to" id="emailTo" required
-                 value="{{ reminder.email_to|default:'' }}"
-                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+        <div class="flex flex-col">
+          <label for="f-email-to" class="block text-sm font-medium mb-1">Email To <span class="text-red-500">*</span> <span class="text-xs text-gray-400 font-normal">(separate with ;)</span></label>
+          <input type="text" name="email_to" id="f-email-to" required
+                 value="{% if form.is_bound %}{{ form.data.email_to }}{% else %}{{ reminder.email_to|default:'' }}{% endif %}"
+                 class="rf-input">
         </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1">
-            Email CC <span class="text-xs text-gray-500 font-normal">(Separate multiple with ';')</span>
-          </label>
-          <input type="text" name="email_cc" id="emailCc"
-                 value="{{ reminder.email_cc|default:'' }}"
-                 class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+        <div class="col-span-1 md:col-span-2 flex flex-col">
+          <label for="f-email-cc" class="block text-sm font-medium mb-1">Email CC <span class="text-xs text-gray-400 font-normal">(separate with ;)</span></label>
+          <input type="text" name="email_cc" id="f-email-cc"
+                 value="{% if form.is_bound %}{{ form.data.email_cc }}{% else %}{{ reminder.email_cc|default:'' }}{% endif %}"
+                 class="rf-input">
         </div>
 
       </div>
 
       <div class="text-right mt-8 pt-4 border-t">
-        <button type="button"
-                onclick="processStep1()"
-                class="bg-indigo-600 text-white px-8 py-2.5 rounded-lg hover:bg-indigo-700 shadow-md font-medium transition-colors">
-          Next Step →
+        <button type="button" onclick="goStep2()"
+                class="bg-indigo-600 text-white px-8 py-2.5 rounded-lg hover:bg-indigo-700 shadow font-medium transition-colors">
+          Next Step &rarr;
         </button>
       </div>
-
     </div>
-
-
-    <div id="step2" style="display:none;" class="space-y-6 transition-opacity duration-300">
-
+    
+    <div id="step2" style="display:none;" class="space-y-6">
       <h3 class="text-lg font-semibold text-gray-700">Recurrence Settings</h3>
 
-      <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex justify-between items-center shadow-sm">
+      <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex justify-between items-center">
         <p class="text-sm text-indigo-900">
-          Reminder begins on: <span id="step2_date_preview" class="font-semibold text-indigo-700 ml-1">Not selected</span>
+          Starts: <span id="s2-date-label" class="font-semibold text-indigo-700 ml-1">—</span>
         </p>
-        <button type="button" onclick="prevStep()" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium underline">
+        <button type="button" onclick="goStep1()"
+                class="text-indigo-600 hover:text-indigo-800 text-sm font-medium underline">
           Edit Start Date
         </button>
       </div>
 
-      <div class="grid grid-cols-2 gap-6">
+      <div id="err-anchor-endrange"></div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <div class="bg-gray-50 border p-5 rounded-xl space-y-4">
+          <div id="err-anchor-rectype"></div>
 
-          <div class="flex flex-wrap gap-4 text-sm font-medium">
-            <label class="cursor-pointer flex items-center gap-1">
-              <input type="radio" name="recurrence_type" value="once"
-                     {% if not reminder or reminder.recurrence_type == "once" %}checked{% endif %}
-                     onclick="showRecurrence('once')" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> One Time
-            </label>
-            <label class="cursor-pointer flex items-center gap-1">
-              <input type="radio" name="recurrence_type" value="daily"
-                     {% if reminder and reminder.recurrence_type == "daily" %}checked{% endif %}
-                     onclick="showRecurrence('daily')" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> Daily
-            </label>
-            <label class="cursor-pointer flex items-center gap-1">
-              <input type="radio" name="recurrence_type" value="weekly"
-                     {% if reminder and reminder.recurrence_type == "weekly" %}checked{% endif %}
-                     onclick="showRecurrence('weekly')" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> Weekly
-            </label>
-            <label class="cursor-pointer flex items-center gap-1">
-              <input type="radio" name="recurrence_type" value="monthly"
-                     {% if reminder and reminder.recurrence_type == "monthly" %}checked{% endif %}
-                     onclick="showRecurrence('monthly')" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> Monthly
-            </label>
-            <label class="cursor-pointer flex items-center gap-1">
-              <input type="radio" name="recurrence_type" value="yearly"
-                     {% if reminder and reminder.recurrence_type == "yearly" %}checked{% endif %}
-                     onclick="showRecurrence('yearly')" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> Yearly
-            </label>
+          <div id="rec-radios" class="flex flex-wrap gap-4 text-sm font-medium">
+            {% if form.is_bound %}
+              {% with rt=form.data.recurrence_type|default:'once' %}
+                <label class="cursor-pointer flex items-center gap-1">
+                  <input type="radio" name="recurrence_type" value="once" required {% if rt == 'once' %}checked{% endif %} class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> One Time
+                </label>
+                <label class="cursor-pointer flex items-center gap-1">
+                  <input type="radio" name="recurrence_type" value="daily" {% if rt == 'daily' %}checked{% endif %} class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Daily
+                </label>
+                <label class="cursor-pointer flex items-center gap-1">
+                  <input type="radio" name="recurrence_type" value="weekly" {% if rt == 'weekly' %}checked{% endif %} class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Weekly
+                </label>
+                <label class="cursor-pointer flex items-center gap-1">
+                  <input type="radio" name="recurrence_type" value="monthly" {% if rt == 'monthly' %}checked{% endif %} class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Monthly
+                </label>
+                <label class="cursor-pointer flex items-center gap-1">
+                  <input type="radio" name="recurrence_type" value="yearly" {% if rt == 'yearly' %}checked{% endif %} class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Yearly
+                </label>
+              {% endwith %}
+            {% elif reminder %}
+              {% with rt=reminder.recurrence_type|default:'once' %}
+                <label class="cursor-pointer flex items-center gap-1">
+                  <input type="radio" name="recurrence_type" value="once" required {% if rt == 'once' %}checked{% endif %} class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> One Time
+                </label>
+                <label class="cursor-pointer flex items-center gap-1">
+                  <input type="radio" name="recurrence_type" value="daily" {% if rt == 'daily' %}checked{% endif %} class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Daily
+                </label>
+                <label class="cursor-pointer flex items-center gap-1">
+                  <input type="radio" name="recurrence_type" value="weekly" {% if rt == 'weekly' %}checked{% endif %} class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Weekly
+                </label>
+                <label class="cursor-pointer flex items-center gap-1">
+                  <input type="radio" name="recurrence_type" value="monthly" {% if rt == 'monthly' %}checked{% endif %} class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Monthly
+                </label>
+                <label class="cursor-pointer flex items-center gap-1">
+                  <input type="radio" name="recurrence_type" value="yearly" {% if rt == 'yearly' %}checked{% endif %} class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Yearly
+                </label>
+              {% endwith %}
+            {% else %}
+              <label class="cursor-pointer flex items-center gap-1">
+                <input type="radio" name="recurrence_type" value="once" required checked class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> One Time
+              </label>
+              <label class="cursor-pointer flex items-center gap-1">
+                <input type="radio" name="recurrence_type" value="daily" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Daily
+              </label>
+              <label class="cursor-pointer flex items-center gap-1">
+                <input type="radio" name="recurrence_type" value="weekly" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Weekly
+              </label>
+              <label class="cursor-pointer flex items-center gap-1">
+                <input type="radio" name="recurrence_type" value="monthly" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Monthly
+              </label>
+              <label class="cursor-pointer flex items-center gap-1">
+                <input type="radio" name="recurrence_type" value="yearly" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" onchange="onRecTypeChange(this.value)"> Yearly
+              </label>
+            {% endif %}
           </div>
 
-          <div id="recurrenceOptions" class="mt-4 pt-4 border-t border-gray-200"></div>
-
+          <div id="rec-options" class="pt-4 border-t border-gray-200"></div>
         </div>
 
-        <div id="endRangePanel" class="bg-gray-50 border p-5 rounded-xl space-y-4">
-
+        <div id="end-range-panel" class="bg-gray-50 border p-5 rounded-xl space-y-4 flex flex-col">
           <h4 class="font-semibold text-sm text-gray-700 border-b pb-2">End Range</h4>
-
-          <input type="hidden" name="range_type" id="rangeTypeHidden" value="{{ reminder.range_type|default:'' }}">
+          <input type="hidden" name="range_type" id="h-range-type"
+                 value="{% if form.is_bound %}{{ form.data.range_type }}{% elif reminder %}{{ reminder.range_type|default:'' }}{% else %}{% endif %}">
 
           <div class="space-y-3 pt-2">
             <label class="flex items-center gap-3 text-sm font-medium cursor-pointer">
-              <input type="radio" name="_range_type_ui" value="end_by" id="rangeTypeEndBy"
-                     onclick="toggleRange('end_by')"
-                     class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+              <input type="radio" name="_range_ui" value="end_by" id="rb-end-by"
+                     class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                     onchange="setRangeType('end_by')">
               End by a specific date
             </label>
             <div class="pl-7">
-              <input type="date" name="end_date" id="rangeEndDate"
-                     value="{% if reminder and reminder.end_date %}{{ reminder.end_date|date:'Y-m-d' }}{% endif %}"
-                     class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-200 text-gray-400 cursor-not-allowed transition-colors"
-                     style="pointer-events:none;">
+              <input type="date" name="end_date" id="f-end-date" disabled
+                     value="{% if form.is_bound %}{{ form.data.end_date }}{% elif reminder and reminder.end_date %}{{ reminder.end_date|date:'Y-m-d' }}{% endif %}"
+                     class="rf-input w-full bg-gray-200 text-gray-400 cursor-not-allowed">
             </div>
 
-            <label class="flex items-center gap-3 text-sm font-medium cursor-pointer mt-4">
-              <input type="radio" name="_range_type_ui" value="end_after" id="rangeTypeEndAfter"
-                     onclick="toggleRange('end_after')"
-                     class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
-              End after a number of occurrences
+            <label class="flex items-center gap-3 text-sm font-medium cursor-pointer mt-3">
+              <input type="radio" name="_range_ui" value="end_after" id="rb-end-after"
+                     class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                     onchange="setRangeType('end_after')">
+              End after occurrences
             </label>
             <div class="pl-7 flex items-center gap-2">
-              <input type="number" name="occurrence_count" id="rangeCount" min="1"
-                     value="{% if reminder and reminder.occurrence_count %}{{ reminder.occurrence_count }}{% endif %}"
-                     class="border rounded-lg px-3 py-2 w-24 focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-200 text-gray-400 cursor-not-allowed transition-colors"
-                     style="pointer-events:none;">
+              <input type="number" name="occurrence_count" id="f-occ-count" min="1" disabled
+                     value="{% if form.is_bound %}{{ form.data.occurrence_count }}{% elif reminder and reminder.occurrence_count %}{{ reminder.occurrence_count }}{% endif %}"
+                     class="rf-input w-24 bg-gray-200 text-gray-400 cursor-not-allowed">
               <span class="text-sm text-gray-600">occurrences</span>
             </div>
           </div>
-
         </div>
 
       </div>
-
+      
       <div class="flex justify-between mt-8 pt-4 border-t">
-        <button type="button"
-                onclick="prevStep()"
+        <button type="button" onclick="goStep1()"
                 class="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700 transition-colors shadow-sm">
-          ← Back
+          &larr; Back
         </button>
-
-        {# FIX: Added id="submitBtn" so we can disable it on submit to prevent double-submit #}
-        <button type="submit" id="submitBtn"
-                class="bg-green-600 text-white px-8 py-2.5 rounded-lg hover:bg-green-700 font-medium shadow-md transition-colors">
-          Save Reminder ✓
+        <button type="submit" id="submit-btn"
+                class="bg-green-600 text-white px-8 py-2.5 rounded-lg hover:bg-green-700 font-medium shadow transition-colors">
+          Save Reminder &#10003;
         </button>
       </div>
-
     </div>
-
   </form>
 </div>
 
+<div id="ss-state" style="display:none;" aria-hidden="true"
+     data-rec-type="{% if form.is_bound %}{{ form.data.recurrence_type|default:'once' }}{% elif reminder %}{{ reminder.recurrence_type|default:'once' }}{% else %}once{% endif %}"
+     data-range-type="{% if form.is_bound %}{{ form.data.range_type }}{% elif reminder %}{{ reminder.range_type|default:'' }}{% else %}{% endif %}"
+     data-interval="{% if form.is_bound %}{{ form.data.interval|default:'1' }}{% elif reminder %}{{ reminder.interval|default:'1' }}{% else %}1{% endif %}"
+     data-daily-mode="{% if form.is_bound %}{{ form.data.daily_mode|default:'interval' }}{% elif reminder %}{{ reminder.daily_mode|default:'interval' }}{% else %}interval{% endif %}"
+     data-hour-interval="{% if form.is_bound %}{{ form.data.hour_interval|default:'' }}{% elif reminder %}{{ reminder.hour_interval|default:'' }}{% else %}{% endif %}"
+     data-weekdays="{% if form.is_bound %}{{ form.data.weekdays|default:'' }}{% elif reminder %}{{ reminder.weekdays|default:'' }}{% else %}{% endif %}"
+     data-monthly-mode="{% if form.is_bound %}{{ form.data.monthly_mode|default:'day_of_month' }}{% elif reminder %}{{ reminder.monthly_mode|default:'day_of_month' }}{% else %}day_of_month{% endif %}"
+     data-by-monthday="{% if form.is_bound %}{{ form.data.by_monthday|default:'1' }}{% elif reminder %}{{ reminder.by_monthday|default:'1' }}{% else %}1{% endif %}"
+     data-by-setpos="{% if form.is_bound %}{{ form.data.by_setpos|default:'' }}{% elif reminder %}{{ reminder.by_setpos|default:'' }}{% else %}{% endif %}"
+     data-by-weekday="{% if form.is_bound %}{{ form.data.by_weekday|default:'' }}{% elif reminder %}{{ reminder.by_weekday|default:'' }}{% else %}{% endif %}"
+     data-yearly-mode="{% if form.is_bound %}{{ form.data.yearly_mode|default:'specific_date' }}{% elif reminder %}{{ reminder.yearly_mode|default:'specific_date' }}{% else %}specific_date{% endif %}"
+     data-by-month="{% if form.is_bound %}{{ form.data.by_month|default:'1' }}{% elif reminder %}{{ reminder.by_month|default:'1' }}{% else %}1{% endif %}"
+     data-is-bound="{% if form.is_bound %}1{% else %}0{% endif %}"
+     data-is-edit="{% if reminder %}1{% else %}0{% endif %}"
+     data-reminder-pk="{% if reminder %}{{ reminder.pk }}{% endif %}"
+     data-form-errors="{{ form.errors|length }}">
+</div>
+
+<style>
+.rf-input {
+  width: 100%;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rf-input:focus {
+  border-color: #6366F1;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.25);
+}
+.rf-input.rf-err {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.2);
+}
+.rf-err-msg {
+  color: #DC2626;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.rf-err-msg::before {
+  content: "⚠";
+}
+.rf-input:disabled, .rf-input[readonly] {
+  background-color: #E5E7EB;
+  color: #9CA3AF;
+  cursor: not-allowed;
+}
+</style>
 
 <script>
-/* ================= UI HELPERS ================= */
-function showErrorBox(messages) {
-  const container = document.getElementById('errorContainer');
-  const list = document.getElementById('errorList');
-  messages.forEach(msg => {
-    const li = document.createElement('li');
-    li.textContent = msg;
-    li.setAttribute('data-js', '1');
-    list.appendChild(li);
-  });
-  container.classList.remove('hidden');
-  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+(function () {
+'use strict';
+
+/* ─────────────────────────────────────────────
+   CONSTANTS & UTILITY
+   ───────────────────────────────────────────── */
+var SS             = document.getElementById('ss-state');
+var IS_BOUND       = SS.dataset.isBound === '1';
+var IS_EDIT        = SS.dataset.isEdit  === '1';
+var REM_PK         = SS.dataset.reminderPk || '';
+var FORM_ERR_COUNT = parseInt(SS.dataset.formErrors, 10) || 0;
+var SK             = IS_EDIT ? ('rf_edit_' + REM_PK) : 'rf_create';
+
+function $id(id) { return document.getElementById(id); }
+
+function emailsValid(str) {
+  if (!str || !str.trim()) return true;
+  var re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return str.split(';').map(function(e){ return e.trim(); }).filter(Boolean).every(function(e){ return re.test(e); });
 }
 
-function clearClientErrors() {
-  document.querySelectorAll('#errorList li[data-js="1"]').forEach(el => el.remove());
-  const list = document.getElementById('errorList');
-  if (list.children.length === 0) {
-    document.getElementById('errorContainer').classList.add('hidden');
+function localNow() {
+  var d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
+function fmt12(dtStr) {
+  if (!dtStr || dtStr.indexOf('T') === -1) return '—';
+  var parts = dtStr.split('T');
+  var dp = parts[0].split('-');
+  var tp = (parts[1] || '00:00').split(':');
+  var h  = parseInt(tp[0], 10);
+  var ampm = h >= 12 ? 'PM' : 'AM';
+  h = (h % 12) || 12;
+  return dp[2] + '-' + dp[1] + '-' + dp[0] + ' ' + h + ':' + tp[1] + ' ' + ampm;
+}
+
+function splitDateTime() {
+  var dt = $id('f-datetime');
+  if (!dt || !dt.value) return;
+  var p = dt.value.split('T');
+  $id('h-start-date').value = p[0] || '';
+  $id('h-time').value       = p[1] || '';
+}
+
+function escapeHTML(str) {
+    return String(str).replace(/[&<>'"]/g, function(match){
+        return {'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[match];
+    });
+}
+
+/* ─────────────────────────────────────────────
+   ERROR HELPERS
+   ───────────────────────────────────────────── */
+function showErr(fieldId, msg, anchorId) {
+  var field  = $id(fieldId);
+  var anchor = anchorId ? $id(anchorId) : null;
+  if (field) field.classList.add('rf-err');
+  var existing = anchor
+    ? anchor.querySelector('[data-err-for="' + fieldId + '"]')
+    : (field && field.parentNode.querySelector('[data-err-for="' + fieldId + '"]'));
+  if (existing) return;
+  var d = document.createElement('div');
+  d.className = 'rf-err-msg';
+  d.setAttribute('data-err-for', fieldId);
+  d.textContent = msg;
+  if (anchor) anchor.appendChild(d);
+  else if (field) field.insertAdjacentElement('afterend', d);
+}
+
+function clearAllErrors() {
+  document.querySelectorAll('.rf-err-msg').forEach(function(el){ el.remove(); });
+  document.querySelectorAll('.rf-err').forEach(function(el){ el.classList.remove('rf-err'); });
+}
+
+function clearFieldError(field) {
+  if (!field || !field.id) return;
+  field.classList.remove('rf-err');
+  var msg = document.querySelector('[data-err-for="' + field.id + '"]');
+  if (msg) msg.remove();
+}
+
+document.addEventListener('input',   function(e){ clearFieldError(e.target); });
+document.addEventListener('change',  function(e){ clearFieldError(e.target); });
+document.addEventListener('focusin', function(e){ clearFieldError(e.target); });
+
+/* ─────────────────────────────────────────────
+   PROGRESS BAR
+   ───────────────────────────────────────────── */
+function setStep(n) {
+  var onStep2 = (n === 2);
+  $id('pb-line').style.width = onStep2 ? '100%' : '0';
+  $id('pb-c2').className = onStep2
+    ? 'w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold transition-colors duration-300'
+    : 'w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-bold transition-colors duration-300';
+  $id('pb-t2').className = onStep2
+    ? 'text-sm font-semibold text-indigo-700 mt-2 transition-colors duration-300'
+    : 'text-sm font-semibold text-gray-400 mt-2 transition-colors duration-300';
+  $id('step1').style.display = onStep2 ? 'none' : 'block';
+  $id('step2').style.display = onStep2 ? 'block' : 'none';
+  sessionStorage.setItem(SK + '_step', String(n));
+}
+
+/* ─────────────────────────────────────────────
+   STEP 1 → STEP 2
+   ───────────────────────────────────────────── */
+function goStep2() {
+  clearAllErrors();
+  var errs    = [];
+  var title   = $id('f-title');
+  var subject = $id('f-subject');
+  var dt      = $id('f-datetime');
+  var emailTo = $id('f-email-to');
+  var emailCc = $id('f-email-cc');
+
+  if (!title.value.trim())   errs.push({ id: 'f-title',   msg: 'Title is required.' });
+  if (!subject.value.trim()) errs.push({ id: 'f-subject', msg: 'Subject is required.' });
+
+  if (!dt.value) {
+    errs.push({ id: 'f-datetime', msg: 'Start Date & Time is required.' });
+  } else if (!IS_EDIT) {
+    var nowBuffer = new Date();
+    nowBuffer.setMinutes(nowBuffer.getMinutes() - 2); 
+    if (new Date(dt.value) < nowBuffer) {
+        errs.push({ id: 'f-datetime', msg: 'Start Date & Time cannot be in the past.' });
+    }
   }
-}
 
-function updateProgressBar(step) {
-  const progressLine = document.getElementById('pb-progress');
-  const s2Circle = document.getElementById('pb-step2-circle');
-  const s2Text   = document.getElementById('pb-step2-text');
-
-  if (step === 1) {
-    progressLine.style.width = '0';
-    s2Circle.classList.replace('bg-indigo-600', 'bg-gray-200');
-    s2Circle.classList.replace('text-white', 'text-gray-500');
-    s2Text.classList.replace('text-indigo-700', 'text-gray-400');
-  } else {
-    progressLine.style.width = '100%';
-    s2Circle.classList.replace('bg-gray-200', 'bg-indigo-600');
-    s2Circle.classList.replace('text-gray-500', 'text-white');
-    s2Text.classList.replace('text-gray-400', 'text-indigo-700');
-  }
-}
-
-/* ================= DATE HELPERS ================= */
-function getLocalDatetimeString() {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  return now.toISOString().slice(0, 16);
-}
-
-function setDateBoundaries() {
-  {% if not reminder %}
-    document.getElementById('step1_start_date').min = getLocalDatetimeString();
-  {% endif %}
-}
-
-function validateSemicolonEmails(inputStr) {
-  if (!inputStr) return true;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const emails = inputStr.split(';').map(e => e.trim()).filter(e => e.length > 0);
-  if (emails.length === 0) return false;
-  for (let email of emails) {
-    if (!emailRegex.test(email)) return false;
-  }
-  return true;
-}
-
-function splitAndStoreDateTime() {
-  const dtInput = document.getElementById('step1_start_date');
-  if (!dtInput.value) return;
-  const parts = dtInput.value.split('T');
-  document.getElementById('hidden_start_date').value = parts[0];
-  document.getElementById('hidden_time').value = parts[1] || '';
-}
-
-/* ================= STEP NAVIGATION ================= */
-function processStep1() {
-  clearClientErrors();
-  let errors = [];
-
-  const title   = document.getElementById('titleInput');
-  const subject = document.getElementById('subjectInput');
-  if (!title.value.trim())   errors.push("Title is required and cannot be empty.");
-  if (!subject.value.trim()) errors.push("Subject is required and cannot be empty.");
-
-  const startDateInput = document.getElementById('step1_start_date');
-  if (!startDateInput.value) {
-    errors.push("Start Date & Time is required.");
-  } else {
-    {% if not reminder %}
-      const selectedDate = new Date(startDateInput.value);
-      const now = new Date();
-      if (selectedDate <= now) {
-        errors.push("Start Date & Time cannot be in the past.");
-      }
-    {% endif %}
-  }
-
-  const emailTo = document.getElementById('emailTo');
-  const emailCc = document.getElementById('emailCc');
   if (!emailTo.value.trim()) {
-    errors.push("Email To is required.");
-  } else if (!validateSemicolonEmails(emailTo.value)) {
-    errors.push("Invalid format in 'Email To'. Please check addresses and separate with semicolons.");
-  }
-  if (emailCc.value && !validateSemicolonEmails(emailCc.value)) {
-    errors.push("Invalid format in 'Email CC'. Please check addresses and separate with semicolons.");
+    errs.push({ id: 'f-email-to', msg: 'At least one recipient email is required.' });
+  } else if (!emailsValid(emailTo.value)) {
+    errs.push({ id: 'f-email-to', msg: 'Invalid email. Use semicolons to separate multiple.' });
   }
 
-  // Attachment validation
-  const attachmentInput = document.getElementById('attachmentInput');
-  if (attachmentInput && attachmentInput.files.length > 0) {
-    const file = attachmentInput.files[0];
-    const allowedExtensions = ['pdf', 'txt', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
-    const fileExtension = file.name.split('.').pop().toLowerCase();
-    if (!allowedExtensions.includes(fileExtension)) {
-      errors.push("Invalid file type. Only PDF, TXT, Word, Excel, and PPT are allowed.");
-    }
-    const maxSizeBytes = 20 * 1024 * 1024;
-    if (file.size > maxSizeBytes) {
-      errors.push("File is too large for email. Maximum allowed size is 20MB.");
-    }
-  }
+  if (emailCc.value.trim() && !emailsValid(emailCc.value))
+    errs.push({ id: 'f-email-cc', msg: 'Invalid email in CC. Use semicolons to separate multiple.' });
 
-  if (errors.length > 0) {
-    showErrorBox(errors);
+  if (errs.length) {
+    errs.forEach(function(e){ showErr(e.id, e.msg); });
+    document.querySelector('.rf-err-msg').scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
-  splitAndStoreDateTime();
+  splitDateTime();
+  $id('s2-date-label').textContent = fmt12($id('f-datetime').value);
 
-  const previewSpan = document.getElementById('step2_date_preview');
-  previewSpan.textContent = formatTo12Hour(startDateInput.value);
+  var startDateOnly = ($id('f-datetime').value || '').split('T')[0];
+  var endDateEl = $id('f-end-date');
+  endDateEl.min = startDateOnly;
+  if (endDateEl.value && endDateEl.value < startDateOnly) endDateEl.value = '';
 
-  const endDateInput = document.getElementById('rangeEndDate');
-  endDateInput.min = startDateInput.value.split('T')[0];
-  if (endDateInput.value && new Date(endDateInput.value) <= new Date(startDateInput.value.split('T')[0])) {
-    endDateInput.value = "";
-  }
-
-  document.getElementById("step1").style.display = "none";
-  document.getElementById("step2").style.display = "block";
-  updateProgressBar(2);
+  setStep(2);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function prevStep() {
-  clearClientErrors();
-  document.getElementById("step2").style.display = "none";
-  document.getElementById("step1").style.display = "block";
-  updateProgressBar(1);
+/* ─────────────────────────────────────────────
+   STEP 2 → STEP 1
+   ───────────────────────────────────────────── */
+function goStep1() {
+  saveStep2ToSession();
+  clearAllErrors();
+  setStep(1);
 }
 
-/* ================= RANGE & TOGGLES ================= */
-function toggleRange(type) {
-  const endDate = document.getElementById("rangeEndDate");
-  const count   = document.getElementById("rangeCount");
-
-  document.getElementById("rangeTypeHidden").value = type;
-
-  if (type === "end_by") {
-    endDate.style.pointerEvents = '';
-    endDate.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
-    endDate.classList.add('bg-white', 'text-gray-900');
-    count.style.pointerEvents = 'none';
-    count.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
-    count.classList.remove('bg-white', 'text-gray-900');
-    count.value = "";
-    count.removeAttribute('name');
-    endDate.setAttribute('name', 'end_date');
+/* ─────────────────────────────────────────────
+   END RANGE
+   ───────────────────────────────────────────── */
+function setRangeType(type) {
+  $id('h-range-type').value = type;
+  var edEl  = $id('f-end-date');
+  var cntEl = $id('f-occ-count');
+  if (type === 'end_by') {
+    edEl.disabled = false;
+    edEl.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+    edEl.classList.add('bg-white', 'text-gray-900');
+    cntEl.disabled = true;
+    cntEl.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+    cntEl.classList.remove('bg-white', 'text-gray-900');
+    cntEl.value = '';
   } else {
-    count.style.pointerEvents = '';
-    count.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
-    count.classList.add('bg-white', 'text-gray-900');
-    endDate.style.pointerEvents = 'none';
-    endDate.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
-    endDate.classList.remove('bg-white', 'text-gray-900');
-    endDate.value = "";
-    endDate.removeAttribute('name');
-    count.setAttribute('name', 'occurrence_count');
+    cntEl.disabled = false;
+    cntEl.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+    cntEl.classList.add('bg-white', 'text-gray-900');
+    edEl.disabled = true;
+    edEl.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+    edEl.classList.remove('bg-white', 'text-gray-900');
+    edEl.value = '';
   }
 }
 
-/* ================= RECURRENCE RENDER ================= */
-function showRecurrence(type) {
-  const container     = document.getElementById("recurrenceOptions");
-  const endRangePanel = document.getElementById("endRangePanel");
+function resetRangePanel() {
+  $id('h-range-type').value   = '';
+  $id('rb-end-by').checked    = false;
+  $id('rb-end-after').checked = false;
+  var edEl  = $id('f-end-date');
+  var cntEl = $id('f-occ-count');
+  edEl.value = '';
+  edEl.disabled = true;
+  edEl.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+  edEl.classList.remove('bg-white', 'text-gray-900');
+  cntEl.value = '';
+  cntEl.disabled = true;
+  cntEl.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+  cntEl.classList.remove('bg-white', 'text-gray-900');
+}
 
-  let html = "";
+/* ─────────────────────────────────────────────
+   OPTION BUILDERS
+   ───────────────────────────────────────────── */
+function _opts(list, sel) {
+  return list.map(function(o){
+    return '<option value="' + o[0] + '"' + (sel === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+  }).join('');
+}
+function setposOpts(sel)  { return _opts([['1','First'],['2','Second'],['3','Third'],['4','Fourth'],['-1','Last']], sel); }
+function weekdayOpts(sel) { return _opts([['0','Mon'],['1','Tue'],['2','Wed'],['3','Thu'],['4','Fri'],['5','Sat'],['6','Sun']], sel); }
+function monthOpts(sel)   { return _opts([['1','Jan'],['2','Feb'],['3','Mar'],['4','Apr'],['5','May'],['6','Jun'],['7','Jul'],['8','Aug'],['9','Sep'],['10','Oct'],['11','Nov'],['12','Dec']], sel); }
 
-  if (type === "once") {
-    html = `<div class="text-sm text-gray-600 bg-gray-100 p-3 rounded-lg border border-gray-200">This reminder will run <span class="font-bold">only once</span> at the selected start date &amp; time.</div>`;
-    endRangePanel.style.display = "none";
+/* ─────────────────────────────────────────────
+   RECURRENCE PANEL RENDER
+   ───────────────────────────────────────────── */
+function renderRecOptions(type) {
+  function sv(ssKey, dsKey, fallback) {
+    var fromSS = sessionStorage.getItem(SK + ssKey);
+    if (fromSS !== null) return fromSS;
+    var ds = SS.dataset[dsKey];
+    return (ds !== undefined && ds !== '') ? ds : (fallback || '');
+  }
 
-    // FIX: When switching to "once", clear any previously set end-range values
-    // so they are not accidentally submitted to the backend.
-    document.getElementById("rangeTypeHidden").value = "";
-    const endDate = document.getElementById("rangeEndDate");
-    const count   = document.getElementById("rangeCount");
-    endDate.value = "";
-    count.value   = "";
-    // Reset radio UI state
-    document.getElementById("rangeTypeEndBy").checked    = false;
-    document.getElementById("rangeTypeEndAfter").checked = false;
+  var container = $id('rec-options');
+  var panel     = $id('end-range-panel');
+  var html      = '';
+
+  if (type === 'once') {
+    panel.style.display = 'none';
+    resetRangePanel();
+    html = '<div class="text-sm text-gray-600 bg-gray-100 p-3 rounded-lg border border-gray-200">' +
+           'This reminder will run <strong>only once</strong> at the selected date &amp; time.</div>' +
+           '<input type="hidden" name="interval" value="1">';
   } else {
-    endRangePanel.style.display = "block";
+    panel.style.display = 'flex';
+    var savedRange = sv('_range', 'rangeType', '');
+    if (savedRange === 'end_by') {
+      $id('rb-end-by').checked = true;
+      setRangeType('end_by');
+      var savedED = sessionStorage.getItem(SK + '_enddate');
+      if (savedED) $id('f-end-date').value = savedED;
+    } else if (savedRange === 'end_after') {
+      $id('rb-end-after').checked = true;
+      setRangeType('end_after');
+      var savedOC = sessionStorage.getItem(SK + '_occcount');
+      if (savedOC) $id('f-occ-count').value = savedOC;
+    } else {
+      var rbChecked = document.querySelector('input[name="_range_ui"]:checked');
+      if (rbChecked) setRangeType(rbChecked.value);
+    }
   }
 
-  if (type === "daily") {
-    html = `
-    <div class="space-y-4">
-      <label class="flex items-center gap-3 text-sm">
-        <input type="radio" name="daily_mode" value="interval" checked onclick="toggleDailyInterval(true)" class="w-4 h-4 text-indigo-600">
-        Every
-        <input type="number" name="interval" id="dailyInterval" value="1" min="1"
-               class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
-        day(s)
-      </label>
-
-      <label class="flex items-center gap-3 text-sm">
-        <input type="radio" name="daily_mode" value="weekday" onclick="toggleDailyInterval(false)" class="w-4 h-4 text-indigo-600">
-        Every weekday (Mon–Fri)
-      </label>
-
-      <div class="flex items-center gap-3 text-sm pt-4 border-t border-gray-200 mt-2">
-        <span class="font-medium text-indigo-700">Repeat throughout the day every</span>
-        <input type="number" name="hour_interval" id="hourInterval" min="1" max="23"
-               placeholder="–"
-               class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
-        <span>hour(s) <span class="text-gray-400 text-xs">(leave blank to skip)</span></span>
-      </div>
-    </div>
-    `;
+  if (type === 'daily') {
+    var dm   = escapeHTML(sv('_dailymode', 'dailyMode', 'interval'));
+    var hi   = escapeHTML(sv('_hourinterval', 'hourInterval', ''));
+    var iv   = escapeHTML(sv('_interval', 'interval', '1'));
+    var isWD = (dm === 'weekday');
+    html =
+      '<div class="space-y-4">' +
+        '<label class="flex items-center gap-3 text-sm">' +
+          '<input type="radio" name="daily_mode" value="interval"' + (!isWD ? ' checked' : '') + ' onchange="toggleDailyInterval(true)" class="w-4 h-4 text-indigo-600"> Every' +
+          '<input type="number" name="interval" id="dyn-interval" value="' + iv + '" min="1" class="rf-input w-16"' + (isWD ? ' readonly' : '') + '> day(s)' +
+        '</label>' +
+        '<label class="flex items-center gap-3 text-sm">' +
+          '<input type="radio" name="daily_mode" value="weekday"' + (isWD ? ' checked' : '') + ' onchange="toggleDailyInterval(false)" class="w-4 h-4 text-indigo-600"> Every weekday (Mon–Fri)' +
+        '</label>' +
+        '<div class="flex items-center gap-3 text-sm pt-4 border-t border-gray-200">' +
+          '<span class="font-medium text-indigo-700">Also repeat every</span>' +
+          '<input type="number" name="hour_interval" id="dyn-hour" min="1" max="23" value="' + hi + '" placeholder="–" class="rf-input w-16">' +
+          '<span>hour(s) <span class="text-gray-400 text-xs">(leave blank to skip)</span></span>' +
+        '</div>' +
+      '</div>';
   }
 
-  if (type === "weekly") {
-    // FIX: Was reading reminder.by_weekday via Django template tag inside JS string.
-    // This causes a Django TemplateSyntaxError if the template tag is inside a JS
-    // template literal. Moved to a safe inline data attribute pattern instead.
-    const savedDaysRaw = document.getElementById('savedByWeekday').value;
-    const savedDays = savedDaysRaw ? savedDaysRaw.split(',').map(d => d.trim()) : [];
-    const days = [
-      {val:'0', label:'Mon'}, {val:'1', label:'Tue'}, {val:'2', label:'Wed'},
-      {val:'3', label:'Thu'}, {val:'4', label:'Fri'}, {val:'5', label:'Sat'}, {val:'6', label:'Sun'}
-    ];
-    const dayCheckboxes = days.map(d => {
-      const checked = savedDays.includes(d.val) ? 'checked' : '';
-      return `<label class="flex items-center gap-1 cursor-pointer bg-white px-2 py-1 border rounded-md shadow-sm hover:bg-indigo-50">
-                <input type="checkbox" name="weekdays" value="${d.val}" ${checked} class="rounded text-indigo-600"> ${d.label}
-              </label>`;
+  if (type === 'weekly') {
+    var raw  = sv('_weekdays', 'weekdays', '');
+    var seld = raw ? raw.split(',').map(function(d){ return d.trim(); }) : [];
+    var iv   = escapeHTML(sv('_interval', 'interval', '1'));
+    var days = [['0','Mon'],['1','Tue'],['2','Wed'],['3','Thu'],['4','Fri'],['5','Sat'],['6','Sun']];
+    var boxes = days.map(function(d){
+      return '<label class="flex items-center gap-1 cursor-pointer bg-white px-2 py-1 border border-gray-300 rounded-md shadow-sm hover:bg-indigo-50 text-sm">' +
+        '<input type="checkbox" name="weekdays" value="' + d[0] + '"' + (seld.indexOf(d[0]) !== -1 ? ' checked' : '') + ' class="rounded text-indigo-600"> ' + d[1] + '</label>';
     }).join('');
-
-    const savedInterval = document.getElementById('savedInterval').value || '1';
-    html = `
-      <div class="text-sm flex items-center gap-2 mb-3">
-        Every
-        <input type="number" name="interval" value="${savedInterval}" min="1"
-               class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
-        week(s)
-      </div>
-      <p class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Select Days</p>
-      <div class="flex flex-wrap gap-3 text-sm">${dayCheckboxes}</div>
-    `;
+    html =
+      '<div class="text-sm flex items-center gap-2 mb-3">Every <input type="number" name="interval" id="dyn-interval" value="' + iv + '" min="1" class="rf-input w-16"> week(s)</div>' +
+      '<p class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Select Days</p>' +
+      '<div class="flex flex-wrap gap-2" id="dyn-weekdays">' + boxes + '</div>';
   }
 
-  if (type === "monthly") {
-    const savedMode     = document.getElementById('savedMonthlyMode').value || 'day_of_month';
-    const savedMonthday = document.getElementById('savedMonthday').value || '1';
-    const savedSetpos   = document.getElementById('savedSetpos').value || '';
-    const savedWeekday  = document.getElementById('savedWeekday').value || '';
-    const savedInterval = document.getElementById('savedInterval').value || '1';
-
-    html = `
-      <div class="text-sm mb-3">
-        Every
-        <input type="number" name="interval" value="${savedInterval}" min="1"
-               class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
-        month(s)
-      </div>
-      <input type="hidden" name="monthly_mode" id="monthlyModeHidden" value="${savedMode}">
-      <div class="space-y-3 p-3 bg-white border rounded-lg">
-        <label class="flex items-center gap-3 text-sm cursor-pointer">
-          <input type="radio" name="_monthly_mode_ui" value="day_of_month"
-                 ${savedMode === 'day_of_month' ? 'checked' : ''}
-                 onclick="toggleMonthly('day')" class="w-4 h-4 text-indigo-600">
-          Day
-          <input type="number" name="by_monthday" id="monthlyDay"
-                 value="${savedMonthday}" min="1" max="31"
-                 class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500"
-                 ${savedMode !== 'day_of_month' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
-        </label>
-        <label class="flex flex-wrap items-center gap-2 text-sm cursor-pointer">
-          <input type="radio" name="_monthly_mode_ui" value="nth_weekday"
-                 ${savedMode === 'nth_weekday' ? 'checked' : ''}
-                 onclick="toggleMonthly('nth')" class="w-4 h-4 text-indigo-600">
-          The
-          <select name="by_setpos" id="monthlySetpos"
-                  class="border rounded px-2 py-1"
-                  ${savedMode !== 'nth_weekday' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
-            <option value="1"  ${savedSetpos=='1'  ?'selected':''}>First</option>
-            <option value="2"  ${savedSetpos=='2'  ?'selected':''}>Second</option>
-            <option value="3"  ${savedSetpos=='3'  ?'selected':''}>Third</option>
-            <option value="4"  ${savedSetpos=='4'  ?'selected':''}>Fourth</option>
-            <option value="-1" ${savedSetpos=='-1' ?'selected':''}>Last</option>
-          </select>
-          <select name="by_weekday" id="monthlyWeekday"
-                  class="border rounded px-2 py-1"
-                  ${savedMode !== 'nth_weekday' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
-            <option value="0" ${savedWeekday=='0'?'selected':''}>Mon</option>
-            <option value="1" ${savedWeekday=='1'?'selected':''}>Tue</option>
-            <option value="2" ${savedWeekday=='2'?'selected':''}>Wed</option>
-            <option value="3" ${savedWeekday=='3'?'selected':''}>Thu</option>
-            <option value="4" ${savedWeekday=='4'?'selected':''}>Fri</option>
-            <option value="5" ${savedWeekday=='5'?'selected':''}>Sat</option>
-            <option value="6" ${savedWeekday=='6'?'selected':''}>Sun</option>
-          </select>
-        </label>
-      </div>
-    `;
+  if (type === 'monthly') {
+    var mode  = escapeHTML(sv('_monthlymode', 'monthlyMode', 'day_of_month'));
+    var mday  = escapeHTML(sv('_bymonthday', 'byMonthday', '1'));
+    var spos  = escapeHTML(sv('_bysetpos', 'bySetpos', '1'));
+    var swday = escapeHTML(sv('_byweekday', 'byWeekday', '0'));
+    var iv    = escapeHTML(sv('_interval', 'interval', '1'));
+    var disDay = (mode !== 'day_of_month') ? ' disabled' : '';
+    var disNth = (mode !== 'nth_weekday')  ? ' disabled' : '';
+    html =
+      '<div class="text-sm mb-3">Every <input type="number" name="interval" id="dyn-interval" value="' + iv + '" min="1" class="rf-input w-16"> month(s)</div>' +
+      '<input type="hidden" name="monthly_mode" id="dyn-monthly-mode" value="' + mode + '">' +
+      '<div class="space-y-3 p-3 bg-white border border-gray-300 rounded-lg">' +
+        '<label class="flex items-center gap-3 text-sm cursor-pointer">' +
+          '<input type="radio" name="_monthly_ui" value="day_of_month"' + (mode === 'day_of_month' ? ' checked' : '') + ' onchange="toggleMonthly(\'day\')" class="w-4 h-4 text-indigo-600"> Day' +
+          '<input type="number" name="by_monthday" id="dyn-monthday" value="' + mday + '" min="1" max="31" class="rf-input w-16"' + disDay + '>' +
+        '</label>' +
+        '<label class="flex flex-wrap items-center gap-2 text-sm cursor-pointer">' +
+          '<input type="radio" name="_monthly_ui" value="nth_weekday"' + (mode === 'nth_weekday' ? ' checked' : '') + ' onchange="toggleMonthly(\'nth\')" class="w-4 h-4 text-indigo-600"> The' +
+          '<select name="by_setpos" id="dyn-setpos" class="rf-input w-auto"' + disNth + '>' + setposOpts(spos) + '</select>' +
+          '<select name="by_weekday" id="dyn-weekday" class="rf-input w-auto"' + disNth + '>' + weekdayOpts(swday) + '</select>' +
+        '</label>' +
+      '</div>';
   }
 
-  if (type === "yearly") {
-    const savedMode    = document.getElementById('savedYearlyMode').value || 'specific_date';
-    const savedMonth   = document.getElementById('savedMonth').value || '1';
-    const savedDay     = document.getElementById('savedMonthday').value || '1';
-    const savedSetpos  = document.getElementById('savedSetpos').value || '';
-    const savedWeekday = document.getElementById('savedWeekday').value || '';
-    const savedInterval = document.getElementById('savedInterval').value || '1';
-
-    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const monthOptions = monthNames
-      .map((m, i) => `<option value="${i+1}" ${savedMonth==String(i+1)?'selected':''}>${m}</option>`).join('');
-    const monthOptionsNth = monthNames
-      .map((m, i) => `<option value="${i+1}" ${savedMonth==String(i+1)?'selected':''}>${m}</option>`).join('');
-
-    html = `
-      <div class="text-sm mb-3">
-        Every
-        <input type="number" name="interval" value="${savedInterval}" min="1"
-               class="border rounded px-2 py-1 w-16 focus:ring-2 focus:ring-indigo-500">
-        year(s)
-      </div>
-      <input type="hidden" name="yearly_mode" id="yearlyModeHidden" value="${savedMode}">
-      <div class="space-y-3 p-3 bg-white border rounded-lg">
-        <label class="flex items-center gap-2 text-sm cursor-pointer">
-          <input type="radio" name="_yearly_mode_ui" value="specific_date"
-                 ${savedMode === 'specific_date' ? 'checked' : ''}
-                 onclick="toggleYearly('specific')" class="w-4 h-4 text-indigo-600">
-          On
-          <select name="by_month" id="yearlyMonth" class="border rounded px-2 py-1"
-                  ${savedMode !== 'specific_date' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
-            ${monthOptions}
-          </select>
-          <input type="number" name="by_monthday" id="yearlyDay"
-                 value="${savedDay}" min="1" max="31"
-                 class="border rounded px-2 py-1 w-16"
-                 ${savedMode !== 'specific_date' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
-        </label>
-
-        <label class="flex flex-wrap items-center gap-2 text-sm cursor-pointer">
-          <input type="radio" name="_yearly_mode_ui" value="nth_weekday"
-                 ${savedMode === 'nth_weekday' ? 'checked' : ''}
-                 onclick="toggleYearly('nth')" class="w-4 h-4 text-indigo-600">
-          The
-          <select name="by_setpos" id="yearlySetpos" class="border rounded px-2 py-1"
-                  ${savedMode !== 'nth_weekday' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
-            <option value="1"  ${savedSetpos=='1'  ?'selected':''}>First</option>
-            <option value="2"  ${savedSetpos=='2'  ?'selected':''}>Second</option>
-            <option value="3"  ${savedSetpos=='3'  ?'selected':''}>Third</option>
-            <option value="4"  ${savedSetpos=='4'  ?'selected':''}>Fourth</option>
-            <option value="-1" ${savedSetpos=='-1' ?'selected':''}>Last</option>
-          </select>
-          <select name="by_weekday" id="yearlyWeekday" class="border rounded px-2 py-1"
-                  ${savedMode !== 'nth_weekday' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
-            <option value="0" ${savedWeekday=='0'?'selected':''}>Mon</option>
-            <option value="1" ${savedWeekday=='1'?'selected':''}>Tue</option>
-            <option value="2" ${savedWeekday=='2'?'selected':''}>Wed</option>
-            <option value="3" ${savedWeekday=='3'?'selected':''}>Thu</option>
-            <option value="4" ${savedWeekday=='4'?'selected':''}>Fri</option>
-            <option value="5" ${savedWeekday=='5'?'selected':''}>Sat</option>
-            <option value="6" ${savedWeekday=='6'?'selected':''}>Sun</option>
-          </select>
-          of
-          <select name="by_month" id="yearlyMonthNth" class="border rounded px-2 py-1"
-                  ${savedMode !== 'nth_weekday' ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
-            ${monthOptionsNth}
-          </select>
-        </label>
-      </div>
-    `;
+  if (type === 'yearly') {
+    var mode  = escapeHTML(sv('_yearlymode', 'yearlyMode', 'specific_date'));
+    var mon   = escapeHTML(sv('_bymonth', 'byMonth', '1'));
+    var mday  = escapeHTML(sv('_bymonthday', 'byMonthday', '1'));
+    var spos  = escapeHTML(sv('_bysetpos', 'bySetpos', '1'));
+    var swday = escapeHTML(sv('_byweekday', 'byWeekday', '0'));
+    var iv    = escapeHTML(sv('_interval', 'interval', '1'));
+    var disSpec = (mode !== 'specific_date') ? ' disabled' : '';
+    var disNth  = (mode !== 'nth_weekday')   ? ' disabled' : '';
+    html =
+      '<div class="text-sm mb-3">Every <input type="number" name="interval" id="dyn-interval" value="' + iv + '" min="1" class="rf-input w-16"> year(s)</div>' +
+      '<input type="hidden" name="yearly_mode" id="dyn-yearly-mode" value="' + mode + '">' +
+      '<div class="space-y-3 p-3 bg-white border border-gray-300 rounded-lg">' +
+        '<label class="flex items-center gap-2 text-sm cursor-pointer">' +
+          '<input type="radio" name="_yearly_ui" value="specific_date"' + (mode === 'specific_date' ? ' checked' : '') + ' onchange="toggleYearly(\'specific\')" class="w-4 h-4 text-indigo-600"> On' +
+          '<select name="by_month" id="dyn-month-spec" class="rf-input w-auto"' + disSpec + '>' + monthOpts(mon) + '</select>' +
+          '<input type="number" name="by_monthday" id="dyn-day-spec" value="' + mday + '" min="1" max="31" class="rf-input w-16"' + disSpec + '>' +
+        '</label>' +
+        '<label class="flex flex-wrap items-center gap-2 text-sm cursor-pointer">' +
+          '<input type="radio" name="_yearly_ui" value="nth_weekday"' + (mode === 'nth_weekday' ? ' checked' : '') + ' onchange="toggleYearly(\'nth\')" class="w-4 h-4 text-indigo-600"> The' +
+          '<select name="by_setpos" id="dyn-setpos-y" class="rf-input w-auto"' + disNth + '>' + setposOpts(spos) + '</select>' +
+          '<select name="by_weekday" id="dyn-weekday-y" class="rf-input w-auto"' + disNth + '>' + weekdayOpts(swday) + '</select> of' +
+          '<select name="by_month" id="dyn-month-nth" class="rf-input w-auto"' + disNth + '>' + monthOpts(mon) + '</select>' +
+        '</label>' +
+      '</div>';
   }
 
   container.innerHTML = html;
 }
 
-/* ================= TOGGLE HELPERS ================= */
+/* ─────────────────────────────────────────────
+   TOGGLE HELPERS
+   ───────────────────────────────────────────── */
 function toggleDailyInterval(enabled) {
-  const el = document.getElementById("dailyInterval");
+  var el = $id('dyn-interval');
   if (!el) return;
-  if (enabled) {
-    el.style.opacity = '';
-    el.style.pointerEvents = '';
+  // FIXED: Using readOnly instead of disabled so the value is securely sent to Django
+  el.readOnly = !enabled;
+  if (!enabled) {
+      el.value = '1';
+      el.classList.add('bg-gray-200', 'text-gray-400');
   } else {
-    el.style.opacity = '0.4';
-    el.style.pointerEvents = 'none';
-    el.value = "";
+      el.classList.remove('bg-gray-200', 'text-gray-400');
   }
 }
 
 function toggleMonthly(mode) {
-  const dayInput = document.getElementById("monthlyDay");
-  const setpos   = document.getElementById("monthlySetpos");
-  const weekday  = document.getElementById("monthlyWeekday");
-  const hidden   = document.getElementById("monthlyModeHidden");
-  if (!dayInput) return;
-
-  if (mode === 'day') {
-    hidden.value = 'day_of_month';
-    dayInput.style.opacity = ''; dayInput.style.pointerEvents = '';
-    setpos.style.opacity = '0.4'; setpos.style.pointerEvents = 'none';
-    weekday.style.opacity = '0.4'; weekday.style.pointerEvents = 'none';
-  } else {
-    hidden.value = 'nth_weekday';
-    dayInput.style.opacity = '0.4'; dayInput.style.pointerEvents = 'none';
-    setpos.style.opacity = ''; setpos.style.pointerEvents = '';
-    weekday.style.opacity = ''; weekday.style.pointerEvents = '';
-  }
+  var mday   = $id('dyn-monthday');
+  var spos   = $id('dyn-setpos');
+  var wday   = $id('dyn-weekday');
+  var hidden = $id('dyn-monthly-mode');
+  if (!mday) return;
+  var isDayMode = (mode === 'day');
+  hidden.value = isDayMode ? 'day_of_month' : 'nth_weekday';
+  mday.disabled = !isDayMode;
+  spos.disabled = isDayMode;
+  wday.disabled = isDayMode;
 }
 
 function toggleYearly(mode) {
-  const month    = document.getElementById("yearlyMonth");
-  const day      = document.getElementById("yearlyDay");
-  const setpos   = document.getElementById("yearlySetpos");
-  const weekday  = document.getElementById("yearlyWeekday");
-  const monthNth = document.getElementById("yearlyMonthNth");
-  const hidden   = document.getElementById("yearlyModeHidden");
-  if (!month) return;
-
-  if (mode === 'specific') {
-    hidden.value = 'specific_date';
-    month.style.opacity = ''; month.style.pointerEvents = '';
-    day.style.opacity = ''; day.style.pointerEvents = '';
-    setpos.style.opacity = '0.4'; setpos.style.pointerEvents = 'none';
-    weekday.style.opacity = '0.4'; weekday.style.pointerEvents = 'none';
-    monthNth.style.opacity = '0.4'; monthNth.style.pointerEvents = 'none';
-  } else {
-    hidden.value = 'nth_weekday';
-    month.style.opacity = '0.4'; month.style.pointerEvents = 'none';
-    day.style.opacity = '0.4'; day.style.pointerEvents = 'none';
-    setpos.style.opacity = ''; setpos.style.pointerEvents = '';
-    weekday.style.opacity = ''; weekday.style.pointerEvents = '';
-    monthNth.style.opacity = ''; monthNth.style.pointerEvents = '';
-  }
+  var monSpec = $id('dyn-month-spec');
+  var daySpec = $id('dyn-day-spec');
+  var spos    = $id('dyn-setpos-y');
+  var wday    = $id('dyn-weekday-y');
+  var monNth  = $id('dyn-month-nth');
+  var hidden  = $id('dyn-yearly-mode');
+  if (!monSpec) return;
+  var isSpec = (mode === 'specific');
+  hidden.value = isSpec ? 'specific_date' : 'nth_weekday';
+  monSpec.disabled = !isSpec;
+  daySpec.disabled = !isSpec;
+  spos.disabled    = isSpec;
+  wday.disabled    = isSpec;
+  monNth.disabled  = isSpec;
 }
 
-/* ================= DATE FORMAT ================= */
-function formatTo12Hour(datetimeStr) {
-  const [datePart, timePart] = datetimeStr.split('T');
-  const [year, month, day]   = datePart.split('-');
-  const [hoursStr, minutes]  = timePart.split(':');
-  let hours = parseInt(hoursStr, 10);
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  hours = hours % 12 || 12;
-  return `${day}-${month}-${year} ${hours}:${minutes} ${ampm}`;
+/* ─────────────────────────────────────────────
+   RECURRENCE RADIO CHANGE
+   ───────────────────────────────────────────── */
+function onRecTypeChange(type) {
+  renderRecOptions(type);
+  sessionStorage.setItem(SK + '_rectype', type);
 }
 
-/* ================= FINAL SUBMISSION VALIDATION ================= */
-document.getElementById('reminderForm').addEventListener('submit', function(e) {
-  splitAndStoreDateTime();
-  clearClientErrors();
-  let errors = [];
+/* ─────────────────────────────────────────────
+   SESSION STORAGE – SAVE STEP 2
+   ───────────────────────────────────────────── */
+function saveStep2ToSession() {
+  var recEl = document.querySelector('input[name="recurrence_type"]:checked');
+  if (recEl) sessionStorage.setItem(SK + '_rectype', recEl.value);
 
-  const recurrenceType = document.querySelector('input[name="recurrence_type"]:checked')?.value;
-  const rangeType      = document.getElementById('rangeTypeHidden')?.value;
+  sessionStorage.setItem(SK + '_range',    $id('h-range-type').value);
+  sessionStorage.setItem(SK + '_enddate',  $id('f-end-date').value);
+  sessionStorage.setItem(SK + '_occcount', $id('f-occ-count').value);
 
-  if (!recurrenceType) errors.push("Please select a Recurrence type.");
+  var iv = $id('dyn-interval');
+  if (iv) sessionStorage.setItem(SK + '_interval', iv.value);
 
-  if (recurrenceType === 'weekly') {
-    const checkedDays = document.querySelectorAll('input[name="weekdays"]:checked');
-    if (checkedDays.length === 0) {
-      errors.push("For Weekly reminders, you must select at least one day (Mon–Sun).");
+  var dmEl = document.querySelector('input[name="daily_mode"]:checked');
+  if (dmEl) sessionStorage.setItem(SK + '_dailymode', dmEl.value);
+  var hourEl = $id('dyn-hour');
+  if (hourEl) sessionStorage.setItem(SK + '_hourinterval', hourEl.value);
+
+  var wdChecked = Array.from(document.querySelectorAll('input[name="weekdays"]:checked')).map(function(c){ return c.value; });
+  sessionStorage.setItem(SK + '_weekdays', wdChecked.join(','));
+
+  var mmEl = document.querySelector('input[name="_monthly_ui"]:checked');
+  if (mmEl) sessionStorage.setItem(SK + '_monthlymode', mmEl.value);
+  var mdayEl = $id('dyn-monthday'); if (mdayEl) sessionStorage.setItem(SK + '_bymonthday', mdayEl.value);
+  var sposEl = $id('dyn-setpos');   if (sposEl) sessionStorage.setItem(SK + '_bysetpos',   sposEl.value);
+  var wdEl   = $id('dyn-weekday');  if (wdEl)   sessionStorage.setItem(SK + '_byweekday',  wdEl.value);
+
+  var ymEl = document.querySelector('input[name="_yearly_ui"]:checked');
+  if (ymEl) {
+    sessionStorage.setItem(SK + '_yearlymode', ymEl.value);
+    if (ymEl.value === 'specific_date') {
+      var monSpec = $id('dyn-month-spec'); if (monSpec) sessionStorage.setItem(SK + '_bymonth',    monSpec.value);
+      var yday    = $id('dyn-day-spec');   if (yday)    sessionStorage.setItem(SK + '_bymonthday', yday.value);
+    } else {
+      var monNth  = $id('dyn-month-nth');  if (monNth)  sessionStorage.setItem(SK + '_bymonth',   monNth.value);
+      var ysetpos = $id('dyn-setpos-y');   if (ysetpos) sessionStorage.setItem(SK + '_bysetpos',  ysetpos.value);
+      var ywday   = $id('dyn-weekday-y');  if (ywday)   sessionStorage.setItem(SK + '_byweekday', ywday.value);
     }
   }
+}
 
-  if (recurrenceType === 'daily') {
-    const dailyMode = document.querySelector('input[name="daily_mode"]:checked')?.value;
-    if (dailyMode === 'interval') {
-      const intervalVal = document.getElementById('dailyInterval')?.value;
-      if (!intervalVal || parseInt(intervalVal) < 1) {
-        errors.push("Please enter a valid day interval (minimum 1).");
+/* ─────────────────────────────────────────────
+   FORM SUBMIT
+   ───────────────────────────────────────────── */
+var _submitting = false;
+
+$id('reminderForm').addEventListener('submit', function(e) {
+  e.stopImmediatePropagation();
+  if (_submitting) return;
+  e.preventDefault();
+  clearAllErrors();
+
+  var errs      = [];
+  var recType   = (document.querySelector('input[name="recurrence_type"]:checked') || {}).value;
+  var rangeType = $id('h-range-type').value;
+
+  if (!recType)
+    errs.push({ id: 'rec-radios', anchor: 'err-anchor-rectype', msg: 'Please select a recurrence type.' });
+
+  if (recType && recType !== 'once') {
+    if (recType === 'weekly') {
+      var wds = Array.from(document.querySelectorAll('input[name="weekdays"]:checked')).map(function(c){ return c.value; });
+      if (!wds.length) {
+        errs.push({ id: 'dyn-weekdays', msg: 'Select at least one day.' });
+      } else {
+        // FIXED: Create hidden input so Django's CharField perfectly receives the comma separated string
+        var hd = document.createElement('input');
+        hd.type = 'hidden';
+        hd.name = 'by_weekday';
+        hd.value = wds.join(',');
+        this.appendChild(hd);
       }
     }
-    const hourVal = document.getElementById('hourInterval')?.value;
-    if (hourVal && (parseInt(hourVal) < 1 || parseInt(hourVal) > 23)) {
-      errors.push("Hour interval must be between 1 and 23.");
-    }
-  }
 
-  if (['weekly', 'monthly', 'yearly'].includes(recurrenceType)) {
-    const intervalInput = document.querySelector('#recurrenceOptions input[name="interval"]');
-    if (intervalInput && (!intervalInput.value || parseInt(intervalInput.value) < 1)) {
-      errors.push(`Please enter a valid ${recurrenceType} interval (minimum 1).`);
+    if (recType === 'daily') {
+      var dmEl = document.querySelector('input[name="daily_mode"]:checked');
+      if (dmEl && dmEl.value === 'interval') {
+        var ivEl = $id('dyn-interval');
+        if (!ivEl || !ivEl.value || parseInt(ivEl.value, 10) < 1)
+          errs.push({ id: 'dyn-interval', msg: 'Day interval must be at least 1.' });
+      }
+      var hourEl = $id('dyn-hour');
+      if (hourEl && hourEl.value !== '') {
+        var hv = parseInt(hourEl.value, 10);
+        if (isNaN(hv) || hv < 1 || hv > 23)
+          errs.push({ id: 'dyn-hour', msg: 'Hour interval must be between 1 and 23.' });
+      }
     }
-  }
 
-  if (recurrenceType && recurrenceType !== 'once') {
+    if (['weekly','monthly','yearly'].indexOf(recType) !== -1) {
+      var ivEl2 = $id('dyn-interval');
+      if (ivEl2 && (isNaN(parseInt(ivEl2.value, 10)) || parseInt(ivEl2.value, 10) < 1))
+        errs.push({ id: 'dyn-interval', msg: 'Interval must be at least 1.' });
+    }
+
     if (!rangeType) {
-      errors.push("Please select an End Range for your recurring reminder.");
+      errs.push({ id: 'end-range-panel', anchor: 'err-anchor-endrange', msg: 'Please select an End Range.' });
     } else if (rangeType === 'end_by') {
-      const endDate   = document.getElementById('rangeEndDate').value;
-      const startDate = document.getElementById('hidden_start_date').value;
-      if (!endDate) {
-        errors.push("Please select a specific End Date.");
-      } else if (endDate <= startDate) {
-        errors.push("End Date must be strictly AFTER your Start Date.");
-      }
+      var edVal = $id('f-end-date').value;
+      var sdVal = $id('h-start-date').value;
+      if (!edVal) errs.push({ id: 'f-end-date', msg: 'Please select an End Date.' });
+      else if (edVal < sdVal) errs.push({ id: 'f-end-date', msg: 'End Date must be on or after Start Date.' }); 
     } else if (rangeType === 'end_after') {
-      const count = document.getElementById('rangeCount').value;
-      if (!count || parseInt(count) < 1) {
-        errors.push("Please enter a valid number of occurrences (minimum 1).");
-      }
+      var ocVal = $id('f-occ-count').value;
+      if (!ocVal || parseInt(ocVal, 10) < 1)
+        errs.push({ id: 'f-occ-count', msg: 'Occurrences must be at least 1.' });
     }
   }
 
-  if (errors.length > 0) {
-    e.preventDefault();
-    showErrorBox(errors);
+  if (errs.length) {
+    errs.forEach(function(e){ showErr(e.id, e.msg, e.anchor); });
+    var firstErr = document.querySelector('.rf-err-msg');
+    if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
-  // FIX: Disable submit button after successful validation to prevent double-submit.
-  // The button was previously clickable multiple times before the page navigated away,
-  // which could cause duplicate reminders to be created.
-  const btn = document.getElementById('submitBtn');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  btn.classList.add('opacity-60', 'cursor-not-allowed');
+  var btn = $id('submit-btn');
+  btn.disabled = true; btn.textContent = 'Please wait…'; btn.style.opacity = '0.6';
+  _submitting = true;
+  var form = this;
+  setTimeout(function(){ form.submit(); }, 50);
+}, true);
+
+window.addEventListener('pageshow', function() {
+  _submitting = false;
+  var btn = $id('submit-btn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Save Reminder ✓'; btn.style.opacity = '1'; }
 });
 
-/* ================= INITIALIZATION ================= */
-document.addEventListener("DOMContentLoaded", function() {
-  setDateBoundaries();
+/* ─────────────────────────────────────────────
+   SERVER ERROR MAPPING
+   ───────────────────────────────────────────── */
+var SERVER_FIELD_MAP = {
+  'title': 'f-title', 'subject': 'f-subject', 'purpose': 'f-purpose',
+  'category': 'f-category', 'attachment': 'f-attachment',
+  'start_date': 'f-datetime', 'time': 'f-datetime',
+  'email_to': 'f-email-to', 'email_cc': 'f-email-cc',
+  'recurrence_type': 'rec-radios', 'interval': 'dyn-interval',
+  'end_date': 'f-end-date', 'occurrence_count': 'f-occ-count'
+};
 
-  {% if form.errors %}
-    const selectedRecurrence = document.querySelector('input[name="recurrence_type"]:checked');
-    if (selectedRecurrence) {
-      showRecurrence(selectedRecurrence.value);
-    } else {
-      showRecurrence('once');
-    }
+var STEP1_FIELD_IDS = ['f-title','f-subject','f-purpose','f-category','f-attachment','f-datetime','f-email-to','f-email-cc'];
 
-    const savedRangeType = "{{ reminder.range_type|default:'' }}";
-    if (savedRangeType === 'end_by') {
-      document.getElementById('rangeTypeEndBy').checked = true;
-      toggleRange('end_by');
-    } else if (savedRangeType === 'end_after') {
-      document.getElementById('rangeTypeEndAfter').checked = true;
-      toggleRange('end_after');
-    }
+var serverErrors = [];
+{% for field in form %}{% for error in field.errors %}
+serverErrors.push({ field: '{{ field.name|escapejs }}', msg: '{{ error|escapejs }}' });
+{% endfor %}{% endfor %}
+{% for error in form.non_field_errors %}
+serverErrors.push({ field: '__all__', msg: '{{ error|escapejs }}' });
+{% endfor %}
 
-    document.getElementById('errorContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+/* ─────────────────────────────────────────────
+   INIT
+   ───────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function() {
 
-  {% elif reminder %}
-    document.getElementById("step1").style.display = "block";
-    document.getElementById("step2").style.display = "none";
-    updateProgressBar(1);
+  if (!IS_EDIT && !IS_BOUND && FORM_ERR_COUNT === 0) {
+    Object.keys(sessionStorage).forEach(function(k){
+      if (k.indexOf(SK) === 0) sessionStorage.removeItem(k);
+    });
+  }
 
-    const recurrenceType = "{{ reminder.recurrence_type }}";
-    showRecurrence(recurrenceType);
+  var dtEl = $id('f-datetime');
+  if (!IS_EDIT && dtEl) {
+    if (!dtEl.value) dtEl.value = localNow();
+    dtEl.min = localNow();
+  }
 
-    const dateInput = document.getElementById('step1_start_date').value;
-    if (dateInput) {
-      document.getElementById('step2_date_preview').textContent = formatTo12Hour(dateInput);
-    }
+  var recTypeToRender = IS_BOUND
+    ? (SS.dataset.recType || 'once')
+    : (sessionStorage.getItem(SK + '_rectype') || SS.dataset.recType || 'once');
 
-    const savedRangeType = "{{ reminder.range_type|default:'' }}";
-    if (savedRangeType === 'end_by') {
-      document.getElementById('rangeTypeEndBy').checked = true;
-      toggleRange('end_by');
-    } else if (savedRangeType === 'end_after') {
-      document.getElementById('rangeTypeEndAfter').checked = true;
-      toggleRange('end_after');
-    }
+  var rb = document.querySelector('input[name="recurrence_type"][value="' + recTypeToRender + '"]');
+  if (rb) rb.checked = true;
 
-  {% else %}
-    showRecurrence('once');
-  {% endif %}
+  if (!IS_BOUND) {
+    var ssRange = sessionStorage.getItem(SK + '_range');
+    if (ssRange) $id('h-range-type').value = ssRange;
+    var ssED = sessionStorage.getItem(SK + '_enddate');
+    if (ssED) $id('f-end-date').value = ssED;
+    var ssOC = sessionStorage.getItem(SK + '_occcount');
+    if (ssOC) $id('f-occ-count').value = ssOC;
+  }
+
+  renderRecOptions(recTypeToRender);
+
+  var rangeTypeNow = $id('h-range-type').value;
+  if (rangeTypeNow === 'end_by') {
+    $id('rb-end-by').checked = true;
+    setRangeType('end_by');
+    var edVal = IS_BOUND
+      ? '{% if form.is_bound %}{{ form.data.end_date }}{% endif %}'
+      : (sessionStorage.getItem(SK + '_enddate') || '{% if reminder and reminder.end_date %}{{ reminder.end_date|date:"Y-m-d" }}{% endif %}');
+    if (edVal) $id('f-end-date').value = edVal;
+  } else if (rangeTypeNow === 'end_after') {
+    $id('rb-end-after').checked = true;
+    setRangeType('end_after');
+    var ocVal = IS_BOUND
+      ? '{% if form.is_bound %}{{ form.data.occurrence_count }}{% endif %}'
+      : (sessionStorage.getItem(SK + '_occcount') || '{% if reminder and reminder.occurrence_count %}{{ reminder.occurrence_count }}{% endif %}');
+    if (ocVal) $id('f-occ-count').value = ocVal;
+  }
+
+  if (dtEl && dtEl.value) $id('s2-date-label').textContent = fmt12(dtEl.value);
+
+  var hasStep1ServerErr = serverErrors.some(function(e){
+    var mappedId = SERVER_FIELD_MAP[e.field];
+    return mappedId && STEP1_FIELD_IDS.indexOf(mappedId) !== -1;
+  });
+
+  var savedStep = sessionStorage.getItem(SK + '_step');
+
+  if (serverErrors.length > 0) {
+    setTimeout(function(){
+      serverErrors.forEach(function(e){
+        if (e.field === '__all__') showErr('rec-radios', e.msg, 'err-anchor-rectype');
+        else showErr(SERVER_FIELD_MAP[e.field] || e.field, e.msg);
+      });
+      var first = document.querySelector('.rf-err-msg');
+      if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 60);
+    setStep(hasStep1ServerErr ? 1 : 2);
+  } else if (savedStep === '2') {
+    setStep(2);
+  } else {
+    setStep(1);
+  }
 });
+
+window.goStep1             = goStep1;
+window.goStep2             = goStep2;
+window.setRangeType        = setRangeType;
+window.onRecTypeChange     = onRecTypeChange;
+window.toggleDailyInterval = toggleDailyInterval;
+window.toggleMonthly       = toggleMonthly;
+window.toggleYearly        = toggleYearly;
+
+})();
 </script>
-
-<div style="display:none;" aria-hidden="true">
-  <input type="hidden" id="savedByWeekday"   value="{{ reminder.by_weekday|default:'' }}">
-  <input type="hidden" id="savedInterval"    value="{{ reminder.interval|default:'1' }}">
-  <input type="hidden" id="savedMonthlyMode" value="{{ reminder.monthly_mode|default:'day_of_month' }}">
-  <input type="hidden" id="savedYearlyMode"  value="{{ reminder.yearly_mode|default:'specific_date' }}">
-  <input type="hidden" id="savedMonthday"    value="{{ reminder.by_monthday|default:'1' }}">
-  <input type="hidden" id="savedSetpos"      value="{{ reminder.by_setpos|default:'' }}">
-  <input type="hidden" id="savedWeekday"     value="{{ reminder.by_weekday|default:'' }}">
-  <input type="hidden" id="savedMonth"       value="{{ reminder.by_month|default:'1' }}">
-</div>
 
 {% endblock %}

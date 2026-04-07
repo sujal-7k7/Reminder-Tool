@@ -1,109 +1,87 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
 {% block content %}
+<div class="container mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-8 text-gray-800">Category Master</h1>
 
-<div class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-8">
-
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-semibold">
-            Category Master
-        </h2>
-
-        <a href="{% url 'create_reminder' %}"
-           class="text-sm text-indigo-600 hover:underline">
-           Back to Reminder Form
-        </a>
-    </div>
-
-
-    <!-- ADD CATEGORY -->
-    <form method="POST" class="flex gap-4 mb-8">
-        {% csrf_token %}
-
-        <input
-            type="text"
-            name="name"
-            placeholder="Enter category name"
-            required
-            class="flex-1 border px-4 py-3 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
-        >
-
-        <button
-            type="submit"
-            name="add_category"
-            class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg transition"
-        >
-            Add
-        </button>
-
-    </form>
-
-
-    <!-- CATEGORY LIST -->
-    <div class="space-y-4">
-
-        {% for cat in categories %}
-
-        <div class="flex justify-between items-center border rounded-xl p-4 hover:shadow-sm transition">
-
+    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 mb-10">
+        <h2 class="text-lg font-semibold mb-4">Add New Category</h2>
+        <form method="POST" class="flex flex-wrap gap-4 items-end">
+            {% csrf_token %}
+            
+            <input type="hidden" name="add_category" value="true"> 
+            
+            <div class="flex-1 min-w-[200px]">
+                <label for="cat_name" class="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
+                <input type="text" id="cat_name" name="name" required maxlength="100" placeholder="e.g. Health, Work..."
+                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
             <div>
-                <h3 class="font-medium text-lg">
-                    {{ cat.name }}
-                </h3>
-
-                <p class="text-sm text-gray-500">
-                    Status:
-                    <span class="{% if cat.status == 'active' %}text-green-600{% else %}text-red-600{% endif %}">
-                        {{ cat.status|title }}
-                    </span>
-                </p>
+                <label for="cat_color" class="block text-sm font-medium text-gray-700 mb-1">Theme Color</label>
+                <input type="color" id="cat_color" name="color" value="#6366F1" 
+                    class="h-10 w-20 p-1 border rounded-lg cursor-pointer">
             </div>
-
-            <div class="flex gap-3">
-
-                <!-- TOGGLE STATUS -->
-                <form method="POST">
-                    {% csrf_token %}
-                    <input type="hidden" name="cat_id" value="{{ cat.id }}">
-
-                    <button
-                        type="submit"
-                        name="toggle_status"
-                        class="px-4 py-2 rounded-lg border text-sm hover:bg-gray-100 transition"
-                    >
-                        Toggle
-                    </button>
-                </form>
-
-                <!-- DELETE CATEGORY -->
-                <form method="POST">
-                    {% csrf_token %}
-                    <input type="hidden" name="cat_id" value="{{ cat.id }}">
-
-                    <button
-                        type="submit"
-                        name="delete_category"
-                        onclick="return confirm('Delete this category?')"
-                        class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm transition"
-                    >
-                        Delete
-                    </button>
-                </form>
-
-            </div>
-
-        </div>
-
-        {% empty %}
-
-        <div class="text-center py-10 text-gray-500">
-            No categories added yet.
-        </div>
-
-        {% endfor %}
-
+            <button type="submit" 
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition">
+                Add Category
+            </button>
+        </form>
     </div>
 
-</div>
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+        <table class="w-full text-left border-collapse">
+            <thead class="bg-gray-50 border-b">
+                <tr>
+                    <th class="px-6 py-4 text-sm font-semibold text-gray-600">Color</th>
+                    <th class="px-6 py-4 text-sm font-semibold text-gray-600">Name</th>
+                    <th class="px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
+                    <th class="px-6 py-4 text-sm font-semibold text-gray-600">Reminders</th>
+                    <th class="px-6 py-4 text-sm font-semibold text-gray-600 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for category in categories %}
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-6 py-4">
+                        <div class="w-8 h-8 rounded-full shadow-sm" style="background-color: {{ category.color }};"></div>
+                    </td>
+                    <td class="px-6 py-4 font-medium text-gray-800">{{ category.name }}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold uppercase 
+                            {% if category.status == 'active' %} bg-green-100 text-green-700 {% else %} bg-gray-100 text-gray-600 {% endif %}">
+                            {{ category.status }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-gray-500">{{ category.reminder_count }}</td>
+                    <td class="px-6 py-4 text-right flex justify-end gap-3">
+                        
+                        <form method="POST" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="cat_id" value="{{ category.id }}">
+                            <input type="hidden" name="toggle_status" value="true">
+                            <button type="submit" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                                {% if category.status == 'active' %}Deactivate{% else %}Activate{% endif %}
+                            </button>
+                        </form>
 
+                        <form method="POST" class="inline" onsubmit="return confirm('Delete this category? This will affect related reminders.');">
+                            {% csrf_token %}
+                            <input type="hidden" name="cat_id" value="{{ category.id }}">
+                            <input type="hidden" name="delete_category" value="true">
+                            <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-800">
+                                Delete
+                            </button>
+                        </form>
+                        
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-10 text-center text-gray-400">No categories created yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}

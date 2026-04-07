@@ -2,60 +2,69 @@
 {% block title %}Users{% endblock %}
 
 {% block content %}
-<div class="bg-white shadow-xl rounded-2xl p-8 max-w-5xl mx-auto">
+<div class="bg-white shadow-xl rounded-2xl p-8 max-w-5xl mx-auto border border-gray-100 mt-6">
 
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-semibold">Users ({{ users|length }})</h2>
-        <a href="{% url 'create_user' %}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+    <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+        <h2 class="text-2xl font-semibold text-gray-800">Users ({{ users|length }})</h2>
+        <a href="{% url 'create_user' %}" class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg hover:bg-indigo-700 font-medium shadow-sm transition">
             + Create User
         </a>
     </div>
 
-    <div class="mb-5">
-        <input type="text" id="userSearch" placeholder="Search users..."
-               class="w-full border rounded-lg px-3 py-2" onkeyup="filterUsers()">
+    <div class="mb-6">
+        <label for="userSearch" class="sr-only">Search users</label>
+        <input type="text" id="userSearch" placeholder="Search by username, email, or role..."
+               class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-sm" 
+               onkeyup="filterUsers()">
     </div>
 
-    <div class="overflow-x-auto rounded-lg border border-gray-100 shadow-sm">
+    <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
         <table class="w-full text-sm min-w-[600px]" id="usersTable">
-            <thead class="bg-gray-100">
+            <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
-                    <th class="p-3 text-left">Username</th>
-                    <th class="p-3 text-left">Email</th>
-                    <th class="p-3 text-center">Role</th>
-                    <th class="p-3 text-center">Joined</th>
-                    <th class="p-3 text-center">Actions</th>
+                    <th class="p-4 text-left font-semibold text-gray-600">Username</th>
+                    <th class="p-4 text-left font-semibold text-gray-600">Email</th>
+                    <th class="p-4 text-center font-semibold text-gray-600">Role</th>
+                    <th class="p-4 text-center font-semibold text-gray-600">Joined</th>
+                    <th class="p-4 text-center font-semibold text-gray-600">Actions</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="divide-y divide-gray-100">
                 {% for u in users %}
-                <tr class="border-t userRow hover:bg-gray-50 transition">
-                    <td class="p-3 username">{{ u.username }}</td>
-                    <td class="p-3">{{ u.email|default:"-" }}</td>
-                    <td class="p-3 text-center">
+                <tr class="userRow hover:bg-gray-50 transition">
+                    <td class="p-4 font-medium text-gray-800">{{ u.username }}</td>
+                    <td class="p-4 text-gray-600">{{ u.email|default:"<span class='text-gray-400 italic'>—</span>"|safe }}</td>
+                    <td class="p-4 text-center">
                         {% if u.is_superuser %}
-                            <span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">Superuser</span>
+                            <span class="px-3 py-1 text-xs font-bold uppercase tracking-wide bg-purple-100 text-purple-700 rounded-full border border-purple-200">Superuser</span>
                         {% elif u.is_staff %}
-                            <span class="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">Admin</span>
+                            <span class="px-3 py-1 text-xs font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700 rounded-full border border-indigo-200">Admin</span>
                         {% else %}
-                            <span class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-full">User</span>
+                            <span class="px-3 py-1 text-xs font-bold uppercase tracking-wide bg-gray-100 text-gray-600 rounded-full border border-gray-200">User</span>
                         {% endif %}
                     </td>
-                    <td class="p-3 text-center">
+                    <td class="p-4 text-center text-gray-500">
                         {{ u.date_joined|date:"M d, Y" }}
                     </td>
-                    <td class="p-3 text-center space-x-2">
-                        <a href="{% url 'edit_user' u.id %}" class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition">Edit</a>
-                        {% if not u.is_superuser %}
+                    <td class="p-4 text-center space-x-2">
+                        <a href="{% url 'edit_user' u.id %}" class="px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200 rounded hover:bg-blue-600 hover:text-white transition">Edit</a>
+                        
+                        {% if not u.is_superuser and u.id != request.user.id %}
                         <form action="{% url 'delete_user' u.id %}" method="POST" style="display:inline;">
                             {% csrf_token %}
-                            <button type="submit" onclick="return confirm('Delete this user?')"
-                                    class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition">Delete</button>
+                            <button type="submit" onclick="return confirm('Are you sure you want to delete this user?')"
+                                    class="px-3 py-1.5 text-xs font-semibold bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-600 hover:text-white transition">Delete</button>
                         </form>
                         {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
+                
+                <tr id="noResultsRow" style="display: none;">
+                    <td colspan="5" class="p-10 text-center text-gray-500">
+                        No users found matching your search.
+                    </td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -66,11 +75,24 @@
 function filterUsers(){
     let input = document.getElementById("userSearch").value.toLowerCase();
     let rows = document.querySelectorAll(".userRow");
+    let visibleCount = 0;
     
     rows.forEach(row => {
-        let username = row.querySelector(".username").innerText.toLowerCase();
-        row.style.display = username.includes(input) ? "" : "none";
+        // FIXED: Search the entire text content of the row (includes email and role)
+        let rowText = row.textContent.toLowerCase();
+        if (rowText.includes(input)) {
+            row.style.display = "";
+            visibleCount++;
+        } else {
+            row.style.display = "none";
+        }
     });
+
+    // FIXED: Toggle the empty state message
+    const noResults = document.getElementById("noResultsRow");
+    if (noResults) {
+        noResults.style.display = visibleCount === 0 ? "" : "none";
+    }
 }
 </script>
 {% endblock %}

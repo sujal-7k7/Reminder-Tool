@@ -20,7 +20,10 @@ urlpatterns = [
     path("edit-user/<int:user_id>/", views.edit_user, name="edit_user"),
     path("delete-user/<int:user_id>/", views.delete_user, name="delete_user"),
     path('calendar/', views.calendar_view, name='calendar_view'),
-    path('faq/', views.faq_view, name='faq'),
+    
+    # --- FAQ Routes ---
+    path("faq/", views.faq_view, name="faq"),                # Public view for users
+    path("faq-master/", views.faq_master, name="faq_master"), # Admin view for staff
 ]
 
 # --- Files Attachments ---

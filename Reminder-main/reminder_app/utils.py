@@ -17,10 +17,6 @@ def parse_emails(email_string):
     """
     Parse a semicolon-or-comma-separated email string into a deduplicated list
     of validated, lowercased addresses.
-
-    BUG FIX: The original used a set() for deduplication, which destroys
-    insertion order and makes recipient ordering non-deterministic across
-    runs.  dict.fromkeys() deduplicates while preserving order.
     """
     if not email_string:
         return []
@@ -39,29 +35,28 @@ def parse_emails(email_string):
     return list(seen.keys())
 
 
-def _log_activity(reminder, status, description):
+def _log_activity(reminder, is_success, details):
     """
     Write an ActivityLog row, swallowing any DB errors so a logging failure
     never masks the real exception.
-
-    BUG FIX: The original called ActivityLog.objects.create() directly inside
-    the except block of send_reminder_email().  If the DB was down (which is
-    often why email sending also fails), that second DB call raised a new
-    exception that replaced the original one in the traceback, making the real
-    failure invisible.
     """
+    # FIXED: Combine into the 'action' field, as 'status' and 'description' don't exist
+    prefix = "Email Sent:" if is_success else "Email Failed:"
+    full_action = f"{prefix} {details}"
+    
+    # FIXED: Enforce the 255 max_length limit of the action field to prevent DB crashes
+    safe_action = (full_action[:252] + '...') if len(full_action) > 255 else full_action
+
     try:
         ActivityLog.objects.create(
             user=reminder.user,
-            action="email_sent",
-            description=description,
-            status=status,
+            action=safe_action,
+            # ip_address is left as None since this is a system-generated action
         )
     except Exception:
-        # Log to file so the failure isn't completely silent, but don't re-raise
         error_logger.exception(
             f"ActivityLog write failed for Reminder ID {reminder.id} "
-            f"(status={status}) — original email outcome is unaffected"
+            f"— original email outcome is unaffected"
         )
 
 
@@ -78,9 +73,6 @@ def send_reminder_email(reminder):
     purpose       = html.escape(reminder.purpose or "N/A")
     category_name = html.escape(reminder.category.name) if reminder.category else "N/A"
 
-    # BUG FIX: escape formatted_time too.  The strftime path is safe, but the
-    # fallback str(reminder.next_trigger) can contain timezone strings with
-    # characters like '<' or '&' that would break the HTML body.
     formatted_time = "N/A"
     if reminder.next_trigger:
         try:
@@ -128,9 +120,6 @@ def send_reminder_email(reminder):
         )
         msg.attach_alternative(html_content, "text/html")
 
-        # =========================================================
-        # NEW: ATTACHMENT LOGIC
-        # =========================================================
         if reminder.attachment and reminder.attachment.name:
             file_path = os.path.join(settings.MEDIA_ROOT, reminder.attachment.name)
             if os.path.exists(file_path):
@@ -140,12 +129,7 @@ def send_reminder_email(reminder):
                     f"Attachment missing on disk for Reminder ID {reminder.id}. "
                     f"Expected path: {file_path}"
                 )
-        # =========================================================
 
-        # BUG FIX: Check the return value of send().  It returns the number of
-        # successfully delivered messages.  A return value of 0 means nothing
-        # was sent (possible when a backend has fail_silently=True upstream)
-        # — treat that as a failure so the ActivityLog is accurate.
         sent = msg.send()
         if not sent:
             raise RuntimeError(
@@ -155,25 +139,19 @@ def send_reminder_email(reminder):
 
         _log_activity(
             reminder,
-            status="success",
-            description=f"Reminder sent: {reminder.title}",
+            is_success=True,
+            details=reminder.title
         )
-        # BUG FIX: Use logger.info (not error_logger) for success, consistent
-        # with the rest of the scheduler logging convention
+        
         logger.info(f"Email sent for Reminder ID {reminder.id} | {title}")
 
     except Exception as e:
-        # BUG FIX: logger.exception() captures the full traceback; the original
-        # error_logger.error(str(e)) only logged the message string, making
-        # stack traces invisible in production logs.
         error_logger.exception(f"Email send failed for Reminder ID {reminder.id}")
 
         _log_activity(
             reminder,
-            status="error",
-            description=f"Failed: {reminder.title} — {str(e)}",
+            is_success=False,
+            details=f"[{reminder.title}] {str(e)}"
         )
 
-        # BUG FIX: bare `raise` preserves the original traceback.
-        # `raise e` resets it to this line, hiding where the error originated.
         raise

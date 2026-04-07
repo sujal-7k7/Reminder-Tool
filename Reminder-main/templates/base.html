@@ -7,9 +7,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}{% endblock %}</title>
-
-<!-- Tailwind -->
+<title>{% block title %}Reminder App{% endblock %}</title>
 
 <script src="{% static 'JS/tailwind.js' %}"></script>
 
@@ -17,208 +15,100 @@
 
 <body class="min-h-screen flex flex-col bg-gradient-to-br from-indigo-200 via-purple-100 to-pink-100">
 
-<!-- ================= NAVBAR ================= -->
-
 <nav class="bg-white/80 backdrop-blur-md border-b shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        
+        <img src="{% static 'images/logo.jpg' %}" class="h-9 object-contain">
 
-<div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-8 text-sm font-medium">
+            
+            <a href="{% url 'dashboard' %}" class="text-gray-600 hover:text-indigo-600 transition">
+                Home 
+            </a>
 
-<!-- LOGO -->
+            {% if request.user.is_staff or request.user.is_superuser %}
+            <div class="relative group py-4"> 
+                <button class="text-gray-600 group-hover:text-indigo-600 transition flex items-center gap-1 font-medium cursor-pointer">
+                    Masters
+                    <svg class="w-4 h-4 transform group-hover:rotate-180 transition duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div class="absolute left-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden origin-top">
+                    <a href="{% url 'category_master' %}" class="block px-4 py-3 hover:bg-indigo-50 text-sm text-gray-700 border-b border-gray-50 transition">Category Master</a>
+                    <a href="{% url 'faq_master' %}" class="block px-4 py-3 hover:bg-indigo-50 text-sm text-gray-700 transition">FAQ Master</a>
+                </div>
+            </div>
+            {% endif %}
 
-<img src="{% static 'images/logo.jpg' %}" class="h-9 object-contain">
+            <a href="{% url 'faq' %}" class="text-gray-600 hover:text-indigo-600 transition">
+                FAQ
+            </a>
 
-<!-- MENU -->
+            <div class="relative">
+                <button id="profileBtn" class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-semibold">
+                    {{ request.user.username|first|upper }}
+                </button>
 
-<div class="flex items-center gap-8 text-sm font-medium">
+                <div id="profileMenu" class="hidden absolute right-0 mt-3 w-60 bg-white border rounded-xl shadow-lg z-50"> 
+                    
+                    <div class="p-3 border-b">
+                        <p class="font-medium text-gray-800">{{ request.user.username }}</p>
+                        <p class="text-sm text-gray-500">{{ request.user.email|default:"No email" }}</p>
+                        <p class="text-xs text-gray-400 mt-1">
+                            {% if request.user.is_staff %}Admin{% else %}User{% endif %}
+                        </p>
+                    </div>
 
-<a href="{% url 'dashboard' %}"
-class="text-gray-600 hover:text-indigo-600 transition">
-Home </a>
+                    <a href="{% url 'profile' %}" class="block px-4 py-2 hover:bg-gray-50 text-sm">Profile</a>
 
+                    {% if request.user.is_staff %}
+                    <a href="{% url 'create_user' %}" class="block px-4 py-2 hover:bg-gray-50 text-sm">Create User</a>
+                    <a href="{% url 'users_list' %}" class="block px-4 py-2 hover:bg-gray-50 text-sm">Users</a>
+                    {% endif %}
 
-{% if request.user.is_staff or request.user.is_superuser %}
-
-<a href="{% url 'category_master' %}"
-class="text-gray-600 hover:text-indigo-600 transition">
-Categories
-</a>
-
-{% endif %}
-
-<a href="{% url 'faq' %}"
-class="text-gray-600 hover:text-indigo-600 transition">
-FAQ</a>
-
-<!-- PROFILE DROPDOWN -->
-
-<div class="relative">
-
-<button id="profileBtn"
-class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600
-flex items-center justify-center font-semibold">
-
-{{ request.user.username|first|upper }}
-
-</button>
-
-<!-- ================= PROFILE DROPDOWN MENU ================= -->
-
-<div id="profileMenu"
-class="hidden absolute right-0 mt-3 w-60 bg-white border rounded-xl shadow-lg z-50"> 
-<!-- CHANGE 1: added z-50 so dropdown appears above cards -->
-
-<div class="p-3 border-b">
-
-<p class="font-medium text-gray-800">
-{{ request.user.username }}
-</p>
-
-<p class="text-sm text-gray-500">
-{{ request.user.email|default:"No email" }}
-</p>
-
-<!-- CHANGE 2: Added role display -->
-<p class="text-xs text-gray-400 mt-1">
-{% if request.user.is_staff %}
-Admin
-{% else %}
-User
-{% endif %}
-</p>
-
-</div>
-
-
-<!-- PROFILE PAGE -->
-<a href="{% url 'profile' %}"
-class="block px-4 py-2 hover:bg-gray-50 text-sm">
-Profile
-</a>
-
-
-<!-- STAFF OPTIONS -->
-{% if request.user.is_staff %}
-
-<!-- CHANGE 3: Staff-only option to create users -->
-<a href="{% url 'create_user' %}"
-class="block px-4 py-2 hover:bg-gray-50 text-sm">
-Create User
-</a>
-
-<!-- CHANGE 4: Staff-only option to view/manage users -->
-<a href="{% url 'users_list' %}"
-class="block px-4 py-2 hover:bg-gray-50 text-sm">
-Users
-</a>
-
-{% endif %}
-
-
-<!-- LOGOUT -->
-<a href="{% url 'logout' %}"
-class="block px-4 py-2 text-red-600 hover:bg-red-50 text-sm">
-Logout
-</a>
-
-</div> 
-</div>
-
-</div>
-</div>
-
+                    <a href="{% url 'logout' %}" class="block px-4 py-2 text-red-600 hover:bg-red-50 text-sm">Logout</a>
+                </div> 
+            </div>
+        </div>
+    </div>
 </nav>
 
-<!-- ================= TOAST ================= -->
-
-{% comment %} {% if messages %}
-
-<div class="fixed top-6 right-6 z-50 space-y-3">
-
-{% for message in messages %}
-
-<div class="toast flex items-center gap-3 px-5 py-3 rounded-lg shadow-lg text-white
-{% if message.tags == 'success' %}bg-green-500{% endif %}
-{% if message.tags == 'error' %}bg-red-500{% endif %}
-{% if message.tags == 'warning' %}bg-yellow-500{% endif %}
-{% if message.tags == 'info' %}bg-blue-500{% endif %}">
-
-<span class="text-sm">{{ message }}</span>
-
-<button onclick="closeToast(this)">✕</button>
-
-</div>
-
-{% endfor %}
-
-</div>
-{% endif %} {% endcomment %}
-
-<!-- ================= PAGE CONTENT ================= -->
-
 <main class="flex-grow">
-
-  <div class="max-w-7xl mx-auto px-6 py-10">
-
-    {% block content %}
-    {% endblock %}
-
-  </div>
-
+    <div class="max-w-7xl mx-auto px-6 py-10">
+        {% block content %}
+        {% endblock %}
+    </div>
 </main>
 
-<!-- ================= FOOTER ================= -->
-
 <footer class="bg-white border-t">
-
-<div class="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
-
-<p>© 2026 Reminder Tool</p>
-
-<div class="flex gap-6 mt-2 md:mt-0">
-
-<a href="{% url 'dashboard' %}" class="hover:text-indigo-600">
-Home
-</a>
-
-<a href="#" class="hover:text-indigo-600">
-Privacy
-</a>
-
-</div>
-
-</div>
-
+    <div class="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
+        <p>© 2026 Reminder Tool</p>
+        <div class="flex gap-6 mt-2 md:mt-0">
+            <a href="{% url 'dashboard' %}" class="hover:text-indigo-600">Home</a>
+            <a href="#" class="hover:text-indigo-600">Privacy</a>
+        </div>
+    </div>
 </footer>
 
-<!-- ================= SCRIPTS ================= -->
-
 <script>
+    const btn = document.getElementById("profileBtn");
+    const menu = document.getElementById("profileMenu");
 
-function closeToast(btn){
-btn.parentElement.remove();
-}
+    if(btn){
+        btn.addEventListener("click",()=>menu.classList.toggle("hidden"));
 
-const btn = document.getElementById("profileBtn");
-const menu = document.getElementById("profileMenu");
-
-if(btn){
-btn.addEventListener("click",()=>menu.classList.toggle("hidden"));
-
-window.addEventListener("click",e=>{
-if(!btn.contains(e.target) && !menu.contains(e.target)){
-menu.classList.add("hidden");
-}
-});
-}
-
+        window.addEventListener("click",e=>{
+            if(!btn.contains(e.target) && !menu.contains(e.target)){
+                menu.classList.add("hidden");
+            }
+        });
+    }
 </script>
 
-{% comment %} New Toast  {% endcomment %}
-<!-- TOAST CONTAINER -->
 <div id="toast-container"></div>
 
 <style>
-
 #toast-container{
     position:fixed;
     top:20px;
@@ -228,7 +118,6 @@ menu.classList.add("hidden");
     flex-direction:column;
     gap:10px;
 }
-
 .toast{
     display:flex;
     align-items:center;
@@ -243,16 +132,11 @@ menu.classList.add("hidden");
     box-shadow:0 6px 15px rgba(0,0,0,0.2);
     animation:toastSlide 0.3s ease;
 }
-
 .toast-success{ background:#28a745; }
 .toast-error{ background:#dc3545; }
 .toast-warning{ background:#f39c12; }
 .toast-info{ background:#3498db; }
-
-.toast-message{
-    flex:1;
-}
-
+.toast-message{ flex:1; }
 .toast-close{
     background:none;
     border:none;
@@ -261,70 +145,39 @@ menu.classList.add("hidden");
     cursor:pointer;
     margin-left:10px;
 }
-
-.toast-close:hover{
-    opacity:0.7;
-}
-
+.toast-close:hover{ opacity:0.7; }
 @keyframes toastSlide{
-    from{
-        transform:translateX(100%);
-        opacity:0;
-    }
-    to{
-        transform:translateX(0);
-        opacity:1;
-    }
+    from{ transform:translateX(100%); opacity:0; }
+    to{ transform:translateX(0); opacity:1; }
 }
-
 </style>
 
-
 <script>
-
 function showToast(message,type="info"){
-
     const container=document.getElementById("toast-container");
-
     const toast=document.createElement("div");
     toast.className="toast toast-"+type;
-
     toast.innerHTML=`
         <div class="toast-message">${message}</div>
         <button class="toast-close">&times;</button>
     `;
-
     container.appendChild(toast);
-
     toast.querySelector(".toast-close").onclick=()=>{
         toast.remove();
     };
-
     setTimeout(()=>{
         toast.remove();
     },4000);
-
 }
-
 </script>
-
 
 {% if messages %}
 <script>
-
 document.addEventListener("DOMContentLoaded",function(){
-
     {% for message in messages %}
-
-        showToast(
-            "{{ message|escapejs }}",
-            "{{ message.tags }}"
-        );
-
+        showToast("{{ message|escapejs }}", "{{ message.tags }}");
     {% endfor %}
-
 });
-
 </script>
 {% endif %}
 

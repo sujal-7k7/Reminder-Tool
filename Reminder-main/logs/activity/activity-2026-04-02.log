@@ -1,0 +1,9 @@
+2026-04-02 09:42:38,850 | INFO | activity_logger | User=sujal | Action=login | Status=success | Description=User logged in
+2026-04-02 09:43:49,251 | INFO | activity_logger | User=sujal | Action=create | Status=success | Description=Created reminder: asdf
+2026-04-02 09:44:16,378 | INFO | activity_logger | User=sujal | Action=create | Status=success | Description=Created reminder: asdf
+2026-04-02 09:44:27,946 | INFO | activity_logger | User=sujal | Action=delete | Status=success | Description=Deleted reminder: asdf
+2026-04-02 09:44:32,123 | INFO | activity_logger | User=sujal | Action=delete | Status=success | Description=Deleted reminder: asd
+2026-04-02 09:49:23,833 | INFO | activity_logger | User=sujal | Action=create | Status=success | Description=Created reminder: asdfg
+2026-04-02 09:55:32,498 | INFO | activity_logger | User=sujal | Action=create | Status=success | Description=Created reminder: asdf
+2026-04-02 12:23:54,650 | INFO | activity_logger | User=sujal | Action=login | Status=success | Description=User logged in
+2026-04-02 12:26:11,424 | INFO | activity_logger | User=sujal | Action=create | Status=success | Description=Created reminder: a

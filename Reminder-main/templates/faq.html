@@ -1,51 +1,24 @@
-{% extends "base.html" %}
-{% load static %}
-
-{% block title %}FAQ{% endblock %}
+{% extends 'base.html' %}
 
 {% block content %}
-<style>
-    /* Hides the default arrow on <details> tags for Safari/Chrome */
-    details > summary::-webkit-details-marker {
-        display: none;
-    }
-</style>
+<div class="container mx-auto p-6 max-w-4xl">
+    <h1 class="text-3xl font-bold mb-8 text-gray-800 text-center">Frequently Asked Questions</h1>
 
-<div class="min-h-screen flex flex-col bg-gradient-to-br from-purple-100 via-indigo-50 to-blue-200 font-sans">
-    <main class="flex-grow max-w-4xl mx-auto px-6 py-16 w-full">
-
-        <div class="text-center mb-14">
-            <h1 class="text-5xl font-bold text-gray-800 mb-4">
-                Frequently Asked Questions
-            </h1>
-            <p class="text-gray-600 text-lg">
-                Have questions? We're here to help.
+    <div class="space-y-6">
+        {% for faq in faqs %}
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
+            <h3 class="text-lg font-semibold text-indigo-700 mb-3">
+                {{ faq.question }}
+            </h3>
+            <p class="text-gray-600 leading-relaxed whitespace-pre-line">
+                {{ faq.answer }}
             </p>
         </div>
-
-        <div class="space-y-4">
-
-            {% for faq in faqs %}
-            <details class="group bg-white/80 backdrop-blur rounded-2xl shadow-sm border border-white/50 transition-all duration-300">
-                <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-6 text-gray-800 hover:text-indigo-600 outline-none">
-                    <span class="text-lg">{{ faq.question }}</span>
-                    <span class="transition-transform duration-300 group-open:rotate-180 text-indigo-500">
-                        <svg fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="24">
-                            <path d="M6 9l6 6 6-6"></path>
-                        </svg>
-                    </span>
-                </summary>
-                <div class="px-6 pb-6 text-gray-600 leading-relaxed border-t border-gray-100 mt-2 pt-4 whitespace-pre-line">
-                    {{ faq.answer }}
-                </div>
-            </details>
-            {% empty %}
-            <div class="text-center p-10 bg-white/50 backdrop-blur rounded-2xl border border-white/50">
-                <p class="text-gray-500">Check back soon! We are updating our FAQs.</p>
-            </div>
-            {% endfor %}
-
+        {% empty %}
+        <div class="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100 text-gray-500">
+            No FAQs available at the moment. Check back later!
         </div>
-    </main>
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% load static %}  {% block title %}Dashboard{% endblock %}
+{% load static %}  
+{% block title %}Dashboard{% endblock %}
 
 {% block content %}
 
@@ -146,7 +147,6 @@
       let val = item[keyName];
       if (!val) return;
       
-      // Standardize to Capitalized (e.g., 'once' -> 'Once', 'active' -> 'Active')
       let label = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
       groups[label] = (groups[label] || 0) + (item.count || 1);
     });
@@ -157,23 +157,23 @@
     };
   }
 
-  // --- Unified Color Palettes (Matched to Django Choices) ---
+  // --- Unified Color Palettes ---
   const recurrenceColorMap = {
-    'Once':    '#64748b', // Slate-500
-    'Daily':   '#6366f1', // Indigo-500
-    'Weekly':  '#8b5cf6', // Violet-500
-    'Monthly': '#ec4899', // Pink-500
-    'Yearly':  '#f59e0b', // Amber-500
+    'Once':    '#64748b',
+    'Daily':   '#6366f1',
+    'Weekly':  '#8b5cf6',
+    'Monthly': '#ec4899',
+    'Yearly':  '#f59e0b',
     'Default': '#94a3b8' 
   };
 
   const statusColorMap = {
-    'Active':    '#6366f1', // Indigo-500
-    'Notified':  '#3b82f6', // Blue-500
-    'Overdue':   '#ef4444', // Red-500
-    'Completed': '#22c55e', // Green-500
-    'Paused':    '#f59e0b', // Amber-500
-    'Failed':    '#7f1d1d', // Dark Red
+    'Active':    '#6366f1',
+    'Notified':  '#3b82f6',
+    'Overdue':   '#ef4444',
+    'Completed': '#22c55e',
+    'Paused':    '#f59e0b',
+    'Failed':    '#7f1d1d',
     'Default':   '#94a3b8'
   };
 
@@ -181,72 +181,81 @@
   let statusChartInstance = null;
 
   function renderCharts(iDataRaw, sDataRaw) {
-    if (intervalChartInstance) intervalChartInstance.destroy();
-    if (statusChartInstance) statusChartInstance.destroy();
-
-    // 1. Recurrence Bar Chart
     const iGrouped = groupChartData(iDataRaw, 'recurrence_type');
-    if (iGrouped.labels.length) {
-      const barColors = iGrouped.labels.map(label => recurrenceColorMap[label] || recurrenceColorMap['Default']);
+    const sGrouped = groupChartData(sDataRaw, 'status');
 
-      intervalChartInstance = new Chart(document.getElementById('intervalChart'), {
-        type: 'bar',
-        data: {
-          labels: iGrouped.labels,
-          datasets: [{
-            label: 'Reminders',
-            data: iGrouped.counts,
-            backgroundColor: barColors,
-            hoverOpacity: 0.8,
-            borderRadius: 8,
-            barThickness: 32
-          }]
-        },
-        options: { 
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } }, 
-            scales: { 
-                y: { beginAtZero: true, ticks: { stepSize: 1, color: '#94a3b8' }, grid: { display: false } },
-                x: { grid: { display: false }, ticks: { color: '#64748b' } }
-            }
+    // FIXED: Intelligently update charts instead of destroying them to prevent flickering
+    if (intervalChartInstance) {
+        if (iGrouped.labels.length) {
+            intervalChartInstance.data.labels = iGrouped.labels;
+            intervalChartInstance.data.datasets[0].data = iGrouped.counts;
+            intervalChartInstance.data.datasets[0].backgroundColor = iGrouped.labels.map(label => recurrenceColorMap[label] || recurrenceColorMap['Default']);
+            intervalChartInstance.update('none'); // Update without animation
         }
-      });
+    } else if (iGrouped.labels.length) {
+        const barColors = iGrouped.labels.map(label => recurrenceColorMap[label] || recurrenceColorMap['Default']);
+        intervalChartInstance = new Chart(document.getElementById('intervalChart'), {
+            type: 'bar',
+            data: {
+            labels: iGrouped.labels,
+            datasets: [{
+                label: 'Reminders',
+                data: iGrouped.counts,
+                backgroundColor: barColors,
+                hoverOpacity: 0.8,
+                borderRadius: 8,
+                barThickness: 32
+            }]
+            },
+            options: { 
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }, 
+                scales: { 
+                    y: { beginAtZero: true, ticks: { stepSize: 1, color: '#94a3b8' }, grid: { display: false } },
+                    x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                }
+            }
+        });
     }
 
-    // 2. Status Distribution (Donut Chart)
-    const sGrouped = groupChartData(sDataRaw, 'status');
-    if (sGrouped.labels.length) {
-      const bgColors = sGrouped.labels.map(label => statusColorMap[label] || statusColorMap['Default']);
-
-      statusChartInstance = new Chart(document.getElementById('statusChart'), {
-        type: 'doughnut',
-        data: {
-          labels: sGrouped.labels,
-          datasets: [{ 
-              data: sGrouped.counts, 
-              backgroundColor: bgColors, 
-              hoverOffset: 6,
-              borderWidth: 3,
-              borderColor: '#ffffff'
-          }]
-        },
-        options: { 
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: "70%", 
-            plugins: { 
-                legend: { 
-                    position: "bottom",
-                    labels: {
-                        padding: 20,
-                        usePointStyle: true,
-                        font: { size: 12, family: 'Inter, sans-serif' }
-                    }
-                } 
-            } 
+    if (statusChartInstance) {
+        if (sGrouped.labels.length) {
+            statusChartInstance.data.labels = sGrouped.labels;
+            statusChartInstance.data.datasets[0].data = sGrouped.counts;
+            statusChartInstance.data.datasets[0].backgroundColor = sGrouped.labels.map(label => statusColorMap[label] || statusColorMap['Default']);
+            statusChartInstance.update('none'); // Update without animation
         }
-      });
+    } else if (sGrouped.labels.length) {
+        const bgColors = sGrouped.labels.map(label => statusColorMap[label] || statusColorMap['Default']);
+        statusChartInstance = new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+            labels: sGrouped.labels,
+            datasets: [{ 
+                data: sGrouped.counts, 
+                backgroundColor: bgColors, 
+                hoverOffset: 6,
+                borderWidth: 3,
+                borderColor: '#ffffff'
+            }]
+            },
+            options: { 
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: "70%", 
+                plugins: { 
+                    legend: { 
+                        position: "bottom",
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            font: { size: 12, family: 'Inter, sans-serif' }
+                        }
+                    } 
+                } 
+            }
+        });
     }
   }
 
@@ -284,11 +293,16 @@
   });
 
   // Auto-Updater
+  // FIXED: Changed from 5000ms to 15000ms to prevent server overload
   setInterval(() => {
     if (document.hidden || updatePaused || (searchInput && searchInput.value.length > 0)) return;
 
     fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-      .then(res => res.text())
+      .then(res => {
+          // FIXED: Ensure we have a valid response before parsing
+          if (!res.ok) throw new Error("Network response was not ok");
+          return res.text();
+      })
       .then(html => {
         const doc = new DOMParser().parseFromString(html, "text/html");
         
@@ -317,7 +331,11 @@
             sync.classList.remove('opacity-0');
             setTimeout(() => sync.classList.add('opacity-0'), 1000);
         }
+      })
+      .catch(error => {
+          // FIXED: Catch network errors so the JS thread doesn't crash
+          console.warn("Live sync temporarily paused due to network error.", error);
       });
-  }, 5000);
+  }, 15000); 
 </script>
 {% endblock %}

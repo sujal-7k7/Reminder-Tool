@@ -18,7 +18,7 @@
                 <input id="calendarSearch" type="text" placeholder="Search title..."
                        class="px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-48">
 
-                <select id="catFilter" class="px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                <select id="catFilter" class="px-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-auto">
                     <option value="all">All Categories</option>
                     {% for cat in categories %}
                     <option value="{{ cat.name }}">{{ cat.name }}</option>
@@ -26,29 +26,23 @@
                 </select>
 
                 <a href="{% url 'dashboard' %}"
-                   class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-200 transition">← Dashboard</a>
+                   class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-200 transition text-center w-full md:w-auto">← Dashboard</a>
             </div>
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-        <div id="calendar"></div>
+    <div class="bg-white rounded-2xl shadow-md border border-gray-100 p-6 overflow-x-auto">
+        <div id="calendar" style="min-width: 600px;"></div>
     </div>
 </div>
 
-<!--
-  FIX: Modal uses both 'hidden' and 'flex' classes in markup so Tailwind's JIT
-  does not purge 'flex' (it only sees it used in JS). The hidden class takes
-  precedence initially because it sets display:none; openModal switches them.
-  FIX: onclick on the outer backdrop div handles click-outside-to-close.
--->
 <div id="eventModal"
      class="fixed inset-0 hidden items-center justify-center bg-gray-900/50 backdrop-blur-sm z-50 p-4"
      onclick="handleBackdropClick(event)">
     <div id="modalCard" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
         <div id="modalHeader" class="px-6 py-4 text-white flex justify-between items-center">
             <h3 id="modalTitle" class="text-lg font-bold truncate"></h3>
-            <button onclick="closeModal()" class="text-2xl leading-none">&times;</button>
+            <button onclick="closeModal()" class="text-2xl leading-none hover:text-gray-200">&times;</button>
         </div>
         <div class="p-6 space-y-4 text-sm text-gray-700">
             <div class="grid grid-cols-[100px_1fr] gap-2">
@@ -83,28 +77,6 @@
 </div>
 
 <script>
-// Helper to define colors based on status
-function getColorByStatus(status) {
-    const s = status ? status.toLowerCase() : '';
-    switch (s) {
-        case 'completed':
-            return { back: '#22c55e', text: '#ffffff' }; // Green
-        case 'overdue':
-            return { back: '#ef4444', text: '#ffffff' }; // Red
-        case 'paused':
-            return { back: '#f59e0b', text: '#ffffff' }; // Amber/Orange
-        case 'notified':
-            return { back: '#3b82f6', text: '#ffffff' }; // Blue
-        case 'active':
-            return { back: '#6366f1', text: '#ffffff' }; // Indigo
-        case 'failed':
-            return { back: '#7f1d1d', text: '#ffffff' }; // Dark Red
-        default:
-            return { back: '#94a3b8', text: '#ffffff' }; // Slate Gray
-    }
-}
-
-// Debounce helper
 function debounce(fn, delay) {
     let timer;
     return function(...args) {
@@ -114,20 +86,12 @@ function debounce(fn, delay) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    const allEventsRaw = JSON.parse(document.getElementById('calendar-events-data').textContent);
-    
-    // Map initial colors to the raw data
-    const allEvents = allEventsRaw.map(e => {
-        const colors = getColorByStatus(e.extendedProps.status);
-        return {
-            ...e,
-            backgroundColor: colors.back,
-            borderColor: colors.back,
-            textColor: colors.text
-        };
-    });
-
+    // FIXED: Removed redundant JS color mappings. Relying strictly on the backend JSON.
+    const allEvents = JSON.parse(document.getElementById('calendar-events-data').textContent);
     const calendarEl = document.getElementById('calendar');
+
+    // FIXED: Responsive header logic for mobile devices
+    const isMobile = window.innerWidth < 768;
 
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
@@ -137,12 +101,11 @@ document.addEventListener('DOMContentLoaded', function () {
             listMonth:    { displayEventTime: true }
         },
         headerToolbar: {
-            left:   'prev,next today',
+            left:   isMobile ? 'prev,next' : 'prev,next today',
             center: 'title',
-            right:  'dayGridMonth,timeGridWeek,listMonth'
+            right:  isMobile ? 'dayGridMonth,listMonth' : 'dayGridMonth,timeGridWeek,listMonth'
         },
         height: "auto",
-
         events: function(info, successCallback) {
             const searchTerm = document.getElementById('calendarSearch').value.toLowerCase();
             const catFilter  = document.getElementById('catFilter').value;
@@ -154,7 +117,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             successCallback(filtered);
         },
-
         eventClick: function(info) {
             const p = info.event.extendedProps;
 
@@ -165,13 +127,9 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById("modalSubject").textContent  = p.subject  || '—';
             document.getElementById("modalPurpose").textContent  = p.purpose  || '—';
             document.getElementById("modalTo").textContent       = p.email_to || '—';
-            document.getElementById("modalCC").textContent =
-                (p.email_cc && p.email_cc !== 'None') ? p.email_cc : '—';
+            document.getElementById("modalCC").textContent = (p.email_cc && p.email_cc !== 'None') ? p.email_cc : '—';
 
-            // Modal Header matches the event color
             document.getElementById("modalHeader").style.backgroundColor = info.event.backgroundColor;
-
-            // Optional: Match the status text color in the modal
             document.getElementById("modalStatus").style.color = info.event.backgroundColor;
 
             openModal();

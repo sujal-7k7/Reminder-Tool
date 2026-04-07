@@ -47,8 +47,14 @@ def build_rrule(reminder):
         )
         return None
 
-    dtstart = make_aware_safe(datetime.combine(reminder.start_date, reminder.time))
-    kwargs = {'dtstart': dtstart, 'interval': reminder.interval or 1}
+    # FIX 3: Safe fallback in case start_date or time somehow arrive as None
+    safe_start_date = reminder.start_date or timezone.localdate()
+    safe_time = reminder.time or timezone.now().time()
+    dtstart = make_aware_safe(datetime.combine(safe_start_date, safe_time))
+    
+    # FIX 1: Guarantee interval is strictly a positive integer (>= 1)
+    safe_interval = max(1, reminder.interval or 1)
+    kwargs = {'dtstart': dtstart, 'interval': safe_interval}
 
     # ── End condition ──────────────────────────────────────────────────────────
 
@@ -56,10 +62,6 @@ def build_rrule(reminder):
         end_dt = datetime.combine(reminder.end_date, dt_time(23, 59, 59))
         kwargs['until'] = make_aware_safe(end_dt)
 
-    # FIX: Guard against occurrence_count=0 reaching rrule(count=0).
-    # dateutil with count=0 returns an empty sequence — rule.after() silently
-    # returns None and the reminder completes immediately without ever firing.
-    # Only set count when the value is a positive integer.
     if reminder.occurrence_count is not None and reminder.occurrence_count > 0:
         kwargs['count'] = reminder.occurrence_count
 
@@ -70,15 +72,12 @@ def build_rrule(reminder):
     if req_type == 'daily':
         if reminder.hour_interval:
             kwargs['freq'] = HOURLY
-            kwargs['interval'] = reminder.hour_interval
+            # FIX 1: Guarantee hourly interval is strictly positive
+            kwargs['interval'] = max(1, reminder.hour_interval)
         else:
             kwargs['freq'] = DAILY
 
         if reminder.daily_mode == 'weekday':
-            # FIX: Comment updated to accurately reflect the code.
-            # Code applies Mon–Fri (MO, TU, WE, TH, FR) only.
-            # The previous comment incorrectly said "Mon–Sat" — this was a
-            # documentation error; the template label should read "Mon–Fri".
             kwargs['byweekday'] = (MO, TU, WE, TH, FR)
 
     elif req_type == 'weekly':
@@ -93,7 +92,8 @@ def build_rrule(reminder):
         if reminder.monthly_mode == 'day_of_month' and reminder.by_monthday:
             kwargs['bymonthday'] = reminder.by_monthday
         elif reminder.monthly_mode == 'nth_weekday':
-            if reminder.by_setpos is not None:
+            # FIX 2: Guard against bysetpos == 0
+            if reminder.by_setpos is not None and reminder.by_setpos != 0:
                 kwargs['bysetpos'] = reminder.by_setpos
             weekday = _parse_single_weekday(reminder.by_weekday)
             if weekday is not None:
@@ -106,7 +106,8 @@ def build_rrule(reminder):
         if reminder.yearly_mode == 'specific_date' and reminder.by_monthday:
             kwargs['bymonthday'] = reminder.by_monthday
         elif reminder.yearly_mode == 'nth_weekday':
-            if reminder.by_setpos is not None:
+            # FIX 2: Guard against bysetpos == 0
+            if reminder.by_setpos is not None and reminder.by_setpos != 0:
                 kwargs['bysetpos'] = reminder.by_setpos
             weekday = _parse_single_weekday(reminder.by_weekday)
             if weekday is not None:
@@ -114,6 +115,10 @@ def build_rrule(reminder):
 
     try:
         return rrule(**kwargs)
+    except ValueError as ve:
+        # Added specific ValueError catch, as dateutil usually throws this for bad math
+        error_logger.error(f"RRule math error for Reminder ID {reminder.id}: {str(ve)} | kwargs: {kwargs}")
+        return None
     except Exception as e:
         error_logger.error(f"RRule build failed for Reminder ID {reminder.id}: {str(e)}")
         return None

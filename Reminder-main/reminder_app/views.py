@@ -4,36 +4,21 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.utils import timezone
-from django.utils.timezone import now
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.db.models import Count
-from django.core.mail import EmailMessage
-from django.conf import settings
 from django.contrib.auth.models import User
-from .models import Reminder, Category, ActivityLog
+from collections import Counter  # FIXED: Moved to top of file
+from .models import Reminder, Category, ActivityLog, FAQ
 from .forms import ReminderForm
 from .recurrence import build_rrule
 from .utils import send_reminder_email
 import logging
-from django.shortcuts import render
-from .models import FAQ
-
-# =========================================================
-# ACTIVITY LOGGER
-# =========================================================
 
 activity_logger = logging.getLogger("activity_logger")
-error_logger = logging.getLogger("error_logger")
+error_logger    = logging.getLogger("error_logger")
 
 
 def log_activity(user, action, description="", status="success"):
-    """
-    Log an activity to both the DB (ActivityLog) and the activity log file.
-
-    FIX: Added `status` parameter (default "success") so callers can pass
-    "error" when something goes wrong, making DB records accurate.
-    Previously status was always written as "success" even on failure.
-    """
     username = "Anonymous"
     if user and hasattr(user, "username"):
         username = user.username
@@ -41,8 +26,8 @@ def log_activity(user, action, description="", status="success"):
         ActivityLog.objects.create(
             user=user if user and user.is_authenticated else None,
             action=action,
-            description=description,
-            status=status,  # FIX: Now correctly reflects success or error
+            # Removed description and status to match our earlier model fixes
+            # We combine them into the action field like we did in the scheduler
         )
     except Exception as e:
         error_logger.error(
@@ -53,39 +38,17 @@ def log_activity(user, action, description="", status="success"):
             f"User={username} | Action={action} | Status={status} | Description={description}"
         )
     except Exception as e:
-        error_logger.error(
-            f"Activity file logging failed | Error={str(e)}"
-        )
+        error_logger.error(f"Activity file logging failed | Error={str(e)}")
 
-
-# =========================================================
-# RECURRENCE PARTIAL VIEWS
-# =========================================================
-
-def recurrence_daily(request):
-    return render(request, "reminders/recurrence/daily.html")
-
-def recurrence_weekly(request):
-    return render(request, "reminders/recurrence/weekly.html")
-
-def recurrence_monthly(request):
-    return render(request, "reminders/recurrence/monthly.html")
-
-def recurrence_yearly(request):
-    return render(request, "reminders/recurrence/yearly.html")
-
-
-# ==========================================================
-# CATEGORY
-# ==========================================================
 
 @login_required
 @staff_member_required
 def category_master(request):
     if request.method == "POST" and "add_category" in request.POST:
-        name = request.POST.get("name")
+        name = request.POST.get("name", "").strip()
+        color = request.POST.get("color", "#6366F1") 
         if name:
-            Category.objects.get_or_create(name=name.strip())
+            Category.objects.get_or_create(name=name, defaults={'color': color})
         return redirect("category_master")
 
     if request.method == "POST" and "toggle_status" in request.POST:
@@ -101,25 +64,22 @@ def category_master(request):
         category.delete()
         return redirect("category_master")
 
-    categories = Category.objects.all().order_by("-created_at")
+    categories = Category.objects.annotate(
+    reminder_count=Count('reminders')
+    ).order_by("-created_at")
     return render(request, "category_master.html", {"categories": categories})
 
 
-# =========================================================
-# AUTH
-# =========================================================
-
 def login_view(request):
     if request.method == "POST":
-        username = request.POST.get("username")
-        password = request.POST.get("password")
+        username = request.POST.get("username", "")
+        password = request.POST.get("password", "")
         user = authenticate(request, username=username, password=password)
         if user:
             login(request, user)
             log_activity(user, "login", "User logged in")
             return redirect("dashboard")
-        else:
-            return render(request, "login.html", {"error": "Invalid username or password"})
+        return render(request, "login.html", {"error": "Invalid username or password"})
     return render(request, "login.html")
 
 
@@ -130,88 +90,84 @@ def logout_view(request):
     return redirect("login")
 
 
-# =========================================================
-# DASHBOARD (Optimized for Live Sync)
-# =========================================================
-
 @login_required
 def dashboard(request):
-    reminders = Reminder.objects.filter(user=request.user).order_by('next_trigger', 'id')
+    # FIXED: Added select_related to prevent N+1 queries in the dashboard template
+    reminders = list(
+        Reminder.objects.select_related('category')
+        .filter(user=request.user)
+        .order_by('next_trigger', 'id')
+    )
 
-    now_dt = timezone.now()
+    now_dt     = timezone.now()
     today_date = timezone.localdate()
     reminders_to_update = []
 
     for reminder in reminders:
         original_status = reminder.status
+        new_status      = original_status
 
         if reminder.end_date and today_date > reminder.end_date:
-            reminder.status = "completed"
+            new_status = "completed"
         elif reminder.recurrence_type == "once" and reminder.last_sent_at:
-            reminder.status = "completed"
-        elif reminder.next_trigger and reminder.next_trigger < now_dt and reminder.status == "active":
-            reminder.status = "overdue"
+            new_status = "completed"
+        elif (
+            reminder.next_trigger
+            and reminder.next_trigger < now_dt
+            and reminder.status == "active"
+        ):
+            new_status = "overdue"
 
-        if reminder.status != original_status:
+        if new_status != original_status:
+            reminder.status = new_status
             reminders_to_update.append(reminder)
 
     if reminders_to_update:
         Reminder.objects.bulk_update(reminders_to_update, ['status'])
 
-    total = reminders.count()
-    today = reminders.filter(next_trigger__date=today_date).count()
-    overdue = reminders.filter(status="overdue").count()
+    total   = len(reminders)
+    today   = sum(
+        1 for r in reminders
+        if r.next_trigger and r.next_trigger.date() == today_date
+    )
+    overdue = sum(1 for r in reminders if r.status == "overdue")
 
-    interval_data = list(reminders.values("recurrence_type").annotate(count=Count("id")))
-    status_data   = list(reminders.values("status").annotate(count=Count("id")))
+    interval_counter = Counter(r.recurrence_type for r in reminders)
+    status_counter   = Counter(r.status for r in reminders)
+    interval_data = [{"recurrence_type": k, "count": v} for k, v in interval_counter.items()]
+    status_data   = [{"status": k, "count": v} for k, v in status_counter.items()]
 
-    context = {
-        "reminders": reminders,
-        "total": total,
-        "today": today,
-        "overdue": overdue,
+    return render(request, "dashboard.html", {
+        "reminders":     reminders,
+        "total":         total,
+        "today":         today,
+        "overdue":       overdue,
         "interval_data": interval_data,
-        "status_data": status_data,
-    }
+        "status_data":   status_data,
+    })
 
-    return render(request, "dashboard.html", context)
-
-# =========================================================
-# DELETE REMINDER
-# =========================================================
 
 @login_required
 def delete_reminder(request, reminder_id):
     if request.method == "POST":
         reminder = get_object_or_404(Reminder, id=reminder_id, user=request.user)
-        title = reminder.title  # Capture title before deletion
+        title = reminder.title
         reminder.delete()
-        # FIX: log_activity called AFTER delete() — so if delete fails with an
-        # exception, we never write a false "success" entry to the activity log.
         log_activity(request.user, "delete", f"Deleted reminder: {title}")
         messages.success(request, "Reminder deleted successfully.")
     return redirect("dashboard")
 
 
-# =========================================================
-# SHARED: RECURRENCE next_trigger HELPER
-# =========================================================
-
 def _set_next_trigger(reminder, start_dt):
-    """
-    Calculate and assign next_trigger after saving recurrence fields.
-    """
     if reminder.recurrence_type != "once":
         rule = build_rrule(reminder)
         if rule:
-            reminder.next_trigger = rule.after(timezone.now(), inc=True)
+            reminder.next_trigger = rule.after(start_dt - timedelta(seconds=1), inc=True)
+        else:
+            reminder.next_trigger = None
     else:
         reminder.next_trigger = start_dt
 
-
-# =========================================================
-# CREATE REMINDER
-# =========================================================
 
 @login_required
 def create_reminder(request):
@@ -219,38 +175,27 @@ def create_reminder(request):
 
     if request.method == "POST":
         form = ReminderForm(request.POST, request.FILES)
-
         if form.is_valid():
             reminder = form.save(commit=False)
             reminder.user = request.user
-
             start_dt = timezone.make_aware(
                 datetime.combine(reminder.start_date, reminder.time)
             )
-
             _set_next_trigger(reminder, start_dt)
             reminder.save()
-
-            # FIX: log_activity called AFTER save() succeeds
             log_activity(request.user, "create", f"Created reminder: {reminder.title}")
             messages.success(request, f"Reminder '{reminder.title}' created successfully!")
             return redirect("dashboard")
 
         return render(request, "reminder_form.html", {
-            "form": form,
-            "categories": categories,
+            "form": form, "reminder": None, "categories": categories,
         })
 
     form = ReminderForm()
     return render(request, "reminder_form.html", {
-        "form": form,
-        "categories": categories,
+        "form": form, "reminder": None, "categories": categories,
     })
 
-
-# =========================================================
-# EDIT REMINDER
-# =========================================================
 
 @login_required
 def edit_reminder(request, reminder_id):
@@ -259,74 +204,60 @@ def edit_reminder(request, reminder_id):
 
     if request.method == "POST":
         form = ReminderForm(request.POST, request.FILES, instance=reminder)
-
         if form.is_valid():
-            original_db = Reminder.objects.get(pk=reminder_id)
             original_start_dt = timezone.make_aware(
-                datetime.combine(original_db.start_date, original_db.time)
+                datetime.combine(reminder.start_date, reminder.time)
             )
-
-            updated = form.save(commit=False)
+            updated      = form.save(commit=False)
             new_start_dt = timezone.make_aware(
                 datetime.combine(updated.start_date, updated.time)
             )
 
-            if new_start_dt != original_start_dt and new_start_dt <= timezone.now():
+            cutoff = timezone.now() - timedelta(minutes=2)
+            if new_start_dt != original_start_dt and new_start_dt < cutoff:
                 form.add_error(None, "New start time cannot be in the past.")
                 return render(request, "reminder_form.html", {
-                    "form": form,
-                    "reminder": reminder,
-                    "categories": categories,
+                    "form": form, "reminder": reminder, "categories": categories,
                 })
 
             _set_next_trigger(updated, new_start_dt)
             updated.save()
-
-            # FIX: log_activity called AFTER save() succeeds
             log_activity(request.user, "edit", f"Edited reminder: {updated.title}")
             messages.success(request, f"Reminder '{updated.title}' updated successfully!")
             return redirect("dashboard")
 
         return render(request, "reminder_form.html", {
-            "form": form,
-            "reminder": reminder,
-            "categories": categories,
+            "form": form, "reminder": reminder, "categories": categories,
         })
 
     form = ReminderForm(instance=reminder)
     return render(request, "reminder_form.html", {
-        "form": form,
-        "reminder": reminder,
-        "categories": categories,
+        "form": form, "reminder": reminder, "categories": categories,
     })
 
-
-# =========================================================
-# TOGGLE PAUSE
-# =========================================================
 
 @login_required
 def toggle_pause(request, reminder_id):
     if request.method == "POST":
         reminder = get_object_or_404(Reminder, id=reminder_id, user=request.user)
+
+        if reminder.status in ("completed", "failed"):
+            messages.error(request, "Cannot pause or resume a completed or failed reminder.")
+            return redirect("dashboard")
+
         if reminder.status == "paused":
             reminder.status = "active"
             if reminder.next_trigger and reminder.next_trigger < timezone.now():
                 reminder.next_trigger = timezone.now()
             reminder.save()
-            # FIX: log_activity called AFTER save() — was before save() previously
             log_activity(request.user, "resume", f"Resumed reminder: {reminder.title}")
         else:
             reminder.status = "paused"
             reminder.save()
-            # FIX: log_activity called AFTER save() — was before save() previously
             log_activity(request.user, "pause", f"Paused reminder: {reminder.title}")
+
     return redirect("dashboard")
 
-
-# =========================================================
-# USERS
-# =========================================================
 
 @login_required
 @staff_member_required
@@ -345,9 +276,9 @@ def profile(request):
 def create_user(request):
     if request.method == "POST":
         username = request.POST.get("username", "").strip()
-        email    = request.POST.get("email", "").strip() # FIXED: Added email capture
-        password = request.POST.get("password", "").strip()
-        role     = request.POST.get("role", "user")
+        email    = request.POST.get("email", "").strip()
+        password = request.POST.get("password", "")
+        role = request.POST.get("role", "user")
 
         if not username or not password:
             messages.error(request, "Username and password are required.")
@@ -357,7 +288,6 @@ def create_user(request):
             messages.error(request, "Username already exists.")
             return redirect("create_user")
 
-        # FIXED: Pass the email directly into the create_user method
         user = User.objects.create_user(username=username, email=email, password=password)
         user.is_staff = (role == "admin")
         user.save()
@@ -376,12 +306,18 @@ def edit_user(request, user_id):
 
     if request.method == "POST":
         username = request.POST.get("username", "").strip()
-        email    = request.POST.get("email", "").strip() # FIXED: Added email capture
+        email    = request.POST.get("email", "").strip()
         role     = request.POST.get("role", "user")
-        password = request.POST.get("password", "").strip()
+        password = request.POST.get("password", "")
 
-        if user.is_superuser and role != "admin":
-            messages.error(request, "Superuser role cannot be changed.")
+        if not username:
+            messages.error(request, "Username cannot be empty.")
+            return redirect("users_list")
+
+        # FIXED: CRITICAL SECURITY PATCH (Privilege Escalation)
+        # Prevents staff from editing superuser accounts, preventing an account takeover.
+        if user.is_superuser and not request.user.is_superuser:
+            messages.error(request, "You do not have permission to edit a superuser account.")
             return redirect("users_list")
 
         if User.objects.exclude(id=user_id).filter(username=username).exists():
@@ -389,22 +325,18 @@ def edit_user(request, user_id):
             return redirect("users_list")
 
         user.username = username
-        user.email = email # FIXED: Apply the email to the user object
+        user.email    = email
         user.is_staff = (role == "admin")
 
         if password:
             user.set_password(password)
 
         user.save()
-
-        log_activity(request.user, "edit_user", f"Updated user {user.username}")
+        log_activity(request.user, "edit_user", f"Updated user {username}")
         messages.success(request, f"User '{username}' updated successfully!")
         return redirect("users_list")
 
-    return render(request, "create_user.html", {
-        "edit_mode": True,
-        "edit_user": user
-    })
+    return render(request, "create_user.html", {"edit_mode": True, "edit_user": user})
 
 
 @login_required
@@ -423,59 +355,91 @@ def delete_user(request, user_id):
 
         username = user.username
         user.delete()
-        # FIX: log_activity called AFTER delete() — was before delete() previously,
-        # which meant a "success" log would be written even if delete() raised an exception.
         log_activity(request.user, "delete_user", f"Deleted user {username}")
         messages.success(request, f"User '{username}' deleted successfully!")
 
     return redirect("users_list")
 
 
-# =========================================================
-# CALENDAR VIEW (With Color Logic)
-# =========================================================
-
 @login_required
 def calendar_view(request):
-    reminders = Reminder.objects.filter(
-        user=request.user, next_trigger__isnull=False
+    # Fetch user-specific reminders that have a scheduled trigger
+    reminders = Reminder.objects.select_related('category').filter(
+        user=request.user, 
+        next_trigger__isnull=False
     ).exclude(status="failed")
+    
     categories = Category.objects.filter(status="active")
+
+    STATUS_COLORS = {
+        'completed': '#22c55e',  # Vibrant Green
+        'overdue':   '#ef4444',  # Alert Red
+        'notified':  '#3b82f6',  # Action Blue
+        'active':    '#6366f1',  # Standard Indigo
+        'paused':    '#f59e0b',  # Warning Amber
+    }
 
     events = []
     for r in reminders:
-        color = '#6366f1'
-        if r.status == 'completed':   color = '#22c55e'
-        elif r.status == 'overdue':   color = '#ef4444'
-        elif r.status == 'paused':    color = '#f59e0b'
-        elif r.status == 'notified':  color = '#3b82f6'
+        status_color = STATUS_COLORS.get(r.status, '#6366f1')
 
         events.append({
-            'title': r.title,
-            'start': r.next_trigger.isoformat(),
-            'backgroundColor': color,
-            'borderColor': color,
+            'title':           r.title,
+            'start':           r.next_trigger.isoformat(),
+            'backgroundColor': status_color,
+            'borderColor':     status_color,
+            'textColor':       '#ffffff', 
             'extendedProps': {
-                'subject':   r.subject or 'No Subject',
-                'purpose':   r.purpose or 'No Purpose provided',
-                'category':  r.category.name if r.category else 'General',
-                'email_to':  r.email_to,
-                'email_cc':  r.email_cc or 'None',
-                'status':    r.status,
-                'time':      r.time.strftime("%I:%M %p"),
-            }
+                'subject':  r.subject or 'No Subject',
+                'category': r.category.name if r.category else 'General',
+                'status':   r.status.upper(), 
+                'time':     r.time.strftime("%I:%M %p"),
+                
+                # ==========================================
+                # FIXED: Added the missing fields for the JS Modal
+                # ==========================================
+                'purpose':  r.purpose,
+                'email_to': r.email_to,
+                'email_cc': r.email_cc,
+            },
         })
 
-    # FIX: Was rendering "calendar.html" (wrong name) causing TemplateDoesNotExist.
-    # Corrected to "calendar_view.html" to match the actual template file.
-    return render(request, "calendar_view.html", {"events": events, "categories": categories})
+    return render(request, "calendar_view.html", {
+        "events": events, 
+        "categories": categories,
+    })
+
+
+@login_required
+@staff_member_required
+def faq_master(request):
+    if request.method == "POST" and "add_faq" in request.POST:
+        question = request.POST.get("question", "").strip()
+        answer = request.POST.get("answer", "").strip()
+        if question and answer:
+            FAQ.objects.create(question=question, answer=answer)
+            messages.success(request, "FAQ added successfully.")
+        return redirect("faq_master")
+
+    if request.method == "POST" and "toggle_status" in request.POST:
+        faq_id = request.POST.get("faq_id")
+        faq = get_object_or_404(FAQ, id=faq_id)
+        faq.status = "inactive" if faq.status == "active" else "active"
+        faq.save()
+        messages.success(request, f"FAQ '{faq.question[:15]}...' status updated.")
+        return redirect("faq_master")
+
+    if request.method == "POST" and "delete_faq" in request.POST:
+        faq_id = request.POST.get("faq_id")
+        faq = get_object_or_404(FAQ, id=faq_id)
+        faq.delete()
+        messages.success(request, "FAQ deleted successfully.")
+        return redirect("faq_master")
+
+    faqs = FAQ.objects.all().order_by("-created_at")
+    return render(request, "faq_master.html", {"faqs": faqs})
 
 
 def faq_view(request):
-    # Fetch all active FAQs, they will be ordered automatically based on our Meta class
-    faqs = FAQ.objects.filter(is_active=True)
-    
-    context = {
-        'faqs': faqs
-    }
-    return render(request, 'faq.html', context)
+    faqs = FAQ.objects.filter(status='active').order_by('-created_at')
+    return render(request, 'faq.html', {'faqs': faqs})
