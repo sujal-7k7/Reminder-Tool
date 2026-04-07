@@ -40,7 +40,7 @@ class ReminderForm(forms.ModelForm):
         self.fields['interval'].required      = False
 
     def clean_attachment(self):
-        """Security: Enforces file size limits and extension/MIME whitelists."""
+        """Security: Enforces file size limits and strict MIME whitelists."""
         file = self.cleaned_data.get('attachment')
         if file:
             max_size = 20 * 1024 * 1024  # 20MB Limit
@@ -53,10 +53,21 @@ class ReminderForm(forms.ModelForm):
             if ext not in valid_extensions:
                 raise ValidationError("Unsupported file extension. Allowed: PDF, TXT, Word, Excel, PPT.")
                 
-            # Production Security: Check MIME type to prevent basic extension spoofing
-            mime_type, _ = mimetypes.guess_type(file.name)
-            if not mime_type or not (mime_type.startswith('application/') or mime_type.startswith('text/')):
-                raise ValidationError("Invalid file content type detected.")
+            # STRICT FIX: Explicitly map out the exact allowed MIME types
+            content_type = getattr(file, 'content_type', '')
+            allowed_mimes = [
+                'application/pdf', 
+                'text/plain', 
+                'application/msword', 
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel', 
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-powerpoint', 
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            ]
+            
+            if content_type not in allowed_mimes:
+                raise ValidationError("Invalid or potentially malicious file content type detected.")
                 
         return file
 
