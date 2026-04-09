@@ -72,9 +72,12 @@ class ReminderForm(forms.ModelForm):
         return file
 
     def _clean_email_list(self, email_string):
-        """Utility: Sanitizes and validates semicolon-separated emails."""
+        """Utility: Sanitizes and validates semicolon-separated and comma-separated emails."""
         if not email_string:
             return ""
+        
+        # FIX: Replace any commas with semicolons to standardize the string
+        email_string = email_string.replace(',', ';')
         
         # Split strictly by semicolon and remove empty spaces
         emails = [e.strip() for e in email_string.split(';') if e.strip()]
