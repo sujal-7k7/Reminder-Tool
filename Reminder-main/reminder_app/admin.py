@@ -23,26 +23,24 @@ class ReminderAdmin(admin.ModelAdmin):
     list_select_related = ("user", "category") # CRITICAL: Prevents N+1 database queries
     list_per_page = 50
     date_hierarchy = "next_trigger" # Adds a date drill-down navigation
-
 # ======================================
 # ACTIVITY LOG ADMIN
 # ======================================
 @admin.register(ActivityLog)
 class ActivityLogAdmin(admin.ModelAdmin):
-    list_display = ("user", "action", "ip_address", "timestamp")
-    list_filter = ("action", "timestamp")
-    search_fields = ("user__username", "action") 
+    list_display = ("level", "user", "path", "method", "status_code", "timestamp")
+    list_filter = ("level", "method", "status_code", "timestamp")
+    search_fields = ("user__username", "path", "message") 
     ordering = ("-timestamp",)
-    list_select_related = ("user",) # CRITICAL: Prevents N+1 database queries
+    list_select_related = ("user",) 
     list_per_page = 100
     date_hierarchy = "timestamp"
     
-    # CRITICAL: Make logs read-only in production
+    # Make logs read-only in production
     def get_readonly_fields(self, request, obj=None):
-        if obj: # If the object already exists, lock it down
-            return ("user", "action", "ip_address", "timestamp")
+        if obj: 
+            return ("level", "user", "ip_address", "path", "method", "status_code", "message", "timestamp")
         return self.readonly_fields
-
 # ======================================
 # FAQ ADMIN
 # ======================================

@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from django.db.models import Count
 from django.contrib.auth.models import User
-from collections import Counter  # FIXED: Moved to top of file
+from collections import Counter  
 from .models import Reminder, Category, ActivityLog, FAQ
 from .forms import ReminderForm
 from .recurrence import build_rrule
@@ -17,25 +17,30 @@ import logging
 activity_logger = logging.getLogger("activity_logger")
 error_logger    = logging.getLogger("error_logger")
 
-
-def log_activity(user, action, description="", status="success"):
-    username = "Anonymous"
-    if user and hasattr(user, "username"):
-        username = user.username
+# ==========================================
+# FIXED: Updated log_activity to match new DB schema
+# It now requires 'request' to get the path and method
+# ==========================================
+def log_activity(request, message, level="INFO"):
+    user = request.user if hasattr(request, 'user') and request.user.is_authenticated else None
+    username = user.username if user else "Anonymous"
+    
     try:
         ActivityLog.objects.create(
-            user=user if user and user.is_authenticated else None,
-            action=action,
-            # Removed description and status to match our earlier model fixes
-            # We combine them into the action field like we did in the scheduler
+            user=user,
+            level=level,
+            path=request.path,
+            method=request.method,
+            status_code=200, # Assuming success if we hit this custom log
+            message=message
         )
     except Exception as e:
         error_logger.error(
-            f"DB ActivityLog failed | User={username} | Action={action} | Error={str(e)}"
+            f"DB ActivityLog failed | User={username} | Path={request.path} | Error={str(e)}"
         )
     try:
         activity_logger.info(
-            f"User={username} | Action={action} | Status={status} | Description={description}"
+            f"User={username} | Path={request.path} | Level={level} | Message={message}"
         )
     except Exception as e:
         error_logger.error(f"Activity file logging failed | Error={str(e)}")
@@ -49,6 +54,8 @@ def category_master(request):
         color = request.POST.get("color", "#6366F1") 
         if name:
             Category.objects.get_or_create(name=name, defaults={'color': color})
+            # FIXED: Added custom log
+            log_activity(request, f"Added category: {name}")
         return redirect("category_master")
 
     if request.method == "POST" and "toggle_status" in request.POST:
@@ -56,19 +63,21 @@ def category_master(request):
         category = get_object_or_404(Category, id=cat_id)
         category.status = "inactive" if category.status == "active" else "active"
         category.save()
+        log_activity(request, f"Toggled category status: {category.name}")
         return redirect("category_master")
 
     if request.method == "POST" and "delete_category" in request.POST:
         cat_id = request.POST.get("cat_id")
         category = get_object_or_404(Category, id=cat_id)
+        cat_name = category.name
         category.delete()
+        log_activity(request, f"Deleted category: {cat_name}")
         return redirect("category_master")
 
     categories = Category.objects.annotate(
     reminder_count=Count('reminders')
     ).order_by("-created_at")
     return render(request, "category_master.html", {"categories": categories})
-
 
 def login_view(request):
     if request.method == "POST":
@@ -77,22 +86,27 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user:
             login(request, user)
-            log_activity(user, "login", "User logged in")
+            log_activity(request, "User logged in")
             return redirect("dashboard")
+        
+        # ==========================================
+        # ADD THIS: Explicitly log the failed attempt
+        # ==========================================
+        log_activity(request, f"Failed login attempt for username: '{username}'", level="WARNING")
+        
         return render(request, "login.html", {"error": "Invalid username or password"})
     return render(request, "login.html")
 
-
 def logout_view(request):
     if request.user.is_authenticated:
-        log_activity(request.user, "logout", "User logged out")
+        # FIXED: Updated function call
+        log_activity(request, "User logged out")
     logout(request)
     return redirect("login")
 
 
 @login_required
 def dashboard(request):
-    # FIXED: Added select_related to prevent N+1 queries in the dashboard template
     reminders = list(
         Reminder.objects.select_related('category')
         .filter(user=request.user)
@@ -153,7 +167,8 @@ def delete_reminder(request, reminder_id):
         reminder = get_object_or_404(Reminder, id=reminder_id, user=request.user)
         title = reminder.title
         reminder.delete()
-        log_activity(request.user, "delete", f"Deleted reminder: {title}")
+        # FIXED: Updated function call
+        log_activity(request, f"Deleted reminder: {title}")
         messages.success(request, "Reminder deleted successfully.")
     return redirect("dashboard")
 
@@ -183,7 +198,8 @@ def create_reminder(request):
             )
             _set_next_trigger(reminder, start_dt)
             reminder.save()
-            log_activity(request.user, "create", f"Created reminder: {reminder.title}")
+            # FIXED: Updated function call
+            log_activity(request, f"Created reminder: {reminder.title}")
             messages.success(request, f"Reminder '{reminder.title}' created successfully!")
             return redirect("dashboard")
 
@@ -222,7 +238,8 @@ def edit_reminder(request, reminder_id):
 
             _set_next_trigger(updated, new_start_dt)
             updated.save()
-            log_activity(request.user, "edit", f"Edited reminder: {updated.title}")
+            # FIXED: Updated function call
+            log_activity(request, f"Edited reminder: {updated.title}")
             messages.success(request, f"Reminder '{updated.title}' updated successfully!")
             return redirect("dashboard")
 
@@ -250,11 +267,13 @@ def toggle_pause(request, reminder_id):
             if reminder.next_trigger and reminder.next_trigger < timezone.now():
                 reminder.next_trigger = timezone.now()
             reminder.save()
-            log_activity(request.user, "resume", f"Resumed reminder: {reminder.title}")
+            # FIXED: Updated function call
+            log_activity(request, f"Resumed reminder: {reminder.title}")
         else:
             reminder.status = "paused"
             reminder.save()
-            log_activity(request.user, "pause", f"Paused reminder: {reminder.title}")
+            # FIXED: Updated function call
+            log_activity(request, f"Paused reminder: {reminder.title}")
 
     return redirect("dashboard")
 
@@ -292,7 +311,8 @@ def create_user(request):
         user.is_staff = (role == "admin")
         user.save()
 
-        log_activity(request.user, "create_user", f"Created user {username}")
+        # FIXED: Updated function call
+        log_activity(request, f"Created user {username}")
         messages.success(request, f"User '{username}' created successfully!")
         return redirect("users_list")
 
@@ -314,8 +334,6 @@ def edit_user(request, user_id):
             messages.error(request, "Username cannot be empty.")
             return redirect("users_list")
 
-        # FIXED: CRITICAL SECURITY PATCH (Privilege Escalation)
-        # Prevents staff from editing superuser accounts, preventing an account takeover.
         if user.is_superuser and not request.user.is_superuser:
             messages.error(request, "You do not have permission to edit a superuser account.")
             return redirect("users_list")
@@ -332,7 +350,8 @@ def edit_user(request, user_id):
             user.set_password(password)
 
         user.save()
-        log_activity(request.user, "edit_user", f"Updated user {username}")
+        # FIXED: Updated function call
+        log_activity(request, f"Updated user {username}")
         messages.success(request, f"User '{username}' updated successfully!")
         return redirect("users_list")
 
@@ -355,7 +374,8 @@ def delete_user(request, user_id):
 
         username = user.username
         user.delete()
-        log_activity(request.user, "delete_user", f"Deleted user {username}")
+        # FIXED: Updated function call
+        log_activity(request, f"Deleted user {username}")
         messages.success(request, f"User '{username}' deleted successfully!")
 
     return redirect("users_list")
@@ -363,7 +383,6 @@ def delete_user(request, user_id):
 
 @login_required
 def calendar_view(request):
-    # Fetch user-specific reminders that have a scheduled trigger
     reminders = Reminder.objects.select_related('category').filter(
         user=request.user, 
         next_trigger__isnull=False
@@ -372,11 +391,11 @@ def calendar_view(request):
     categories = Category.objects.filter(status="active")
 
     STATUS_COLORS = {
-        'completed': '#22c55e',  # Vibrant Green
-        'overdue':   '#ef4444',  # Alert Red
-        'notified':  '#3b82f6',  # Action Blue
-        'active':    '#6366f1',  # Standard Indigo
-        'paused':    '#f59e0b',  # Warning Amber
+        'completed': '#22c55e', 
+        'overdue':   '#ef4444', 
+        'notified':  '#3b82f6', 
+        'active':    '#6366f1', 
+        'paused':    '#f59e0b', 
     }
 
     events = []
@@ -394,10 +413,6 @@ def calendar_view(request):
                 'category': r.category.name if r.category else 'General',
                 'status':   r.status.upper(), 
                 'time':     r.time.strftime("%I:%M %p"),
-                
-                # ==========================================
-                # FIXED: Added the missing fields for the JS Modal
-                # ==========================================
                 'purpose':  r.purpose,
                 'email_to': r.email_to,
                 'email_cc': r.email_cc,
@@ -418,6 +433,8 @@ def faq_master(request):
         answer = request.POST.get("answer", "").strip()
         if question and answer:
             FAQ.objects.create(question=question, answer=answer)
+            # FIXED: Added custom log
+            log_activity(request, f"Added FAQ: {question[:30]}")
             messages.success(request, "FAQ added successfully.")
         return redirect("faq_master")
 
@@ -426,13 +443,16 @@ def faq_master(request):
         faq = get_object_or_404(FAQ, id=faq_id)
         faq.status = "inactive" if faq.status == "active" else "active"
         faq.save()
+        log_activity(request, f"Toggled FAQ status: {faq.question[:30]}")
         messages.success(request, f"FAQ '{faq.question[:15]}...' status updated.")
         return redirect("faq_master")
 
     if request.method == "POST" and "delete_faq" in request.POST:
         faq_id = request.POST.get("faq_id")
         faq = get_object_or_404(FAQ, id=faq_id)
+        faq_question = faq.question
         faq.delete()
+        log_activity(request, f"Deleted FAQ: {faq_question[:30]}")
         messages.success(request, "FAQ deleted successfully.")
         return redirect("faq_master")
 

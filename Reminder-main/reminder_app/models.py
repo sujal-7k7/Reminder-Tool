@@ -113,18 +113,26 @@ class Reminder(models.Model):
     def __str__(self):
         return f"{self.title} ({self.user.username})"
     
-
 class ActivityLog(models.Model):
-    # FIXED: Changed CASCADE to SET_NULL so audit logs survive user deletion
+    LEVEL_CHOICES = [
+        ('INFO', 'Information / Activity'),
+        ('WARNING', 'Warning'),
+        ('ERROR', 'Error'),
+    ]
+    
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    action = models.CharField(max_length=255)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='INFO')
     ip_address = models.GenericIPAddressField(null=True, blank=True)
+    path = models.CharField(max_length=255, default='/')
+    method = models.CharField(max_length=10, default='GET')
+    status_code = models.IntegerField(default=200)
+    message = models.TextField(blank=True, default="")
+    timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        # FIXED: Handles the display name safely if user is null
-        user_display = self.user.username if self.user else "System Log"
-        return f"{user_display} - {self.action} at {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+        user_display = self.user.username if self.user else "System"
+        # Format: INFO | admin | /dashboard/ | 2026-04-14 04:52:35...
+        return f"{self.level} | {user_display} | {self.path} | {self.timestamp}"
 
 class FAQ(models.Model):
     STATUS_CHOICES = [

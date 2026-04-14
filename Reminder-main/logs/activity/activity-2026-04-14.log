@@ -1,0 +1,10 @@
+2026-04-14 10:21:10,657 | INFO | activity_logger | User=sujal | Action=login | Status=success | Description=User logged in
+2026-04-14 10:41:24,993 | INFO | activity_logger | User=sujal | Path=/ | Level=INFO | Message=User logged in
+2026-04-14 10:50:25,927 | INFO | activity_logger | User=sujal | Path=/ | Level=WARNING | Message=Failed login attempt for username: 'sujal45'
+2026-04-14 10:50:29,827 | INFO | activity_logger | User=sujal | Path=/ | Level=WARNING | Message=Failed login attempt for username: 'sujal12'
+2026-04-14 10:50:38,132 | INFO | activity_logger | User=sujal | Path=/ | Level=WARNING | Message=Failed login attempt for username: 'sujal10'
+2026-04-14 10:50:42,405 | INFO | activity_logger | User=sujal | Path=/ | Level=INFO | Message=User logged in
+2026-04-14 10:58:08,269 | INFO | activity_logger | User=sujal | Path=/ | Level=WARNING | Message=Failed login attempt for username: 'sujal15'
+2026-04-14 10:58:12,041 | INFO | activity_logger | User=sujal | Path=/ | Level=WARNING | Message=Failed login attempt for username: 'sujal20'
+2026-04-14 10:58:19,528 | INFO | activity_logger | User=sujal | Path=/ | Level=WARNING | Message=Failed login attempt for username: 'sujal10'
+2026-04-14 10:58:24,564 | INFO | activity_logger | User=sujal | Path=/ | Level=INFO | Message=User logged in
