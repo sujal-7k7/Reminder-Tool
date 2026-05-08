@@ -1,0 +1,2 @@
+2026-04-27 10:12:43,062 | INFO | activity_logger | User=sujal | Path=/ | Level=INFO | Message=User logged in
+2026-04-27 10:15:23,058 | INFO | activity_logger | User=sujal | Path=/logout/ | Level=INFO | Message=User logged out

@@ -1,0 +1,45 @@
+1)HTML    <label class="flex items-center gap-3 text-sm font-medium cursor-pointer mt-3">
+  <input type="radio" name="_range_ui" value="end_after" id="rb-end-after"
+         class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+         onchange="setRangeType('end_after')">
+  End after occurrences
+</label>
+
+<div class="pl-7 flex items-center gap-2">
+  <input type="number" name="occurrence_count" id="f-occ-count" min="1" disabled
+         value="{% if form.is_bound %}{{ form.data.occurrence_count }}{% elif reminder and reminder.occurrence_count %}{{ reminder.occurrence_count }}{% endif %}"
+         class="rf-input w-24 bg-gray-200 text-gray-400 cursor-not-allowed">
+  <span class="text-sm text-gray-600">occurrences</span>
+</div>
+
+
+
+2 JavaScript activates the occurrence field when user selects “End after occurrences”.
+function setRangeType(type) {
+  $id('h-range-type').value = type;
+  var edEl  = $id('f-end-date');
+  var cntEl = $id('f-occ-count');
+
+  if (type === 'end_by') {
+    edEl.disabled = false;
+
+    cntEl.disabled = true;
+    cntEl.value = '';
+  } else {
+    cntEl.disabled = false;
+
+    edEl.disabled = true;
+    edEl.value = '';
+  }
+}
+
+3 validation validates that occurrence count is at least 1 before form submit.
+} else if (rangeType === 'end_after') {
+  var ocVal = $id('f-occ-count').value;
+
+  if (!ocVal || parseInt(ocVal, 10) < 1)
+    errs.push({
+      id: 'f-occ-count',
+      msg: 'Occurrences must be at least 1.'
+    });
+}

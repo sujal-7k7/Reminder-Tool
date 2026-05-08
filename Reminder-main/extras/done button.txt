@@ -1,0 +1,46 @@
+html_content = f"""
+<html>
+<body style="font-family: Arial; background:#f4f6f8; padding:20px;">
+    <div style="max-width:500px; margin:auto; background:white; border-radius:10px;
+                padding:20px; border:1px solid #e5e7eb;">
+
+        <h2 style="color:#4f46e5; margin-top:0;">&#x1F514; Reminder</h2>
+
+        <p><strong>Title:</strong> {title}</p>
+
+        <p><strong>Purpose:</strong> {purpose}</p>
+
+        <p><strong>Category:</strong> {category_name}</p>
+
+        <p><strong>Scheduled Time:</strong>
+           <span style="color:#059669; font-weight:bold;">
+               {formatted_time}
+           </span>
+        </p>
+
+        <!-- DONE BUTTON -->
+        <div style="text-align:center; margin-top:30px;">
+            <a href="https://your-company-domain.com/reminders/mark-done/{reminder.id}/"
+               style="
+                    background:#10b981;
+                    color:white;
+                    padding:12px 24px;
+                    text-decoration:none;
+                    border-radius:8px;
+                    font-weight:bold;
+                    display:inline-block;
+               ">
+               ✅ Mark as Done
+            </a>
+        </div>
+
+        <hr style="margin:20px 0;">
+
+        <p style="font-size:12px; color:#6b7280; text-align:center;">
+            Automated Reminder System
+        </p>
+
+    </div>
+</body>
+</html>
+"""
