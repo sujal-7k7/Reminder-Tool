@@ -43,7 +43,7 @@ An enterprise-grade, full-stack automated workflow and notification platform bui
 
 | Dashboard Analytics | Interactive Calendar |
 | :---: | :---: |
-| ![Dashboard](Reminder-main/User_manual/Dashboard.jpg) | ![Calendar](images/calender.jpg) |
+| ![Dashboard](Reminder-main/User_manual/Dashboard.jpg) | ![Calendar](Reminder-main/User_manual/calender.jpg) |
 
 | Task Creation (Recurrence) | Category Master (Admin) |
 | :---: | :---: |
