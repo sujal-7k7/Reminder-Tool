@@ -47,7 +47,7 @@ An enterprise-grade, full-stack automated workflow and notification platform bui
 
 | Task Creation (Recurrence) | Category Master (Admin) |
 | :---: | :---: |
-| ![Task Creation](images/recurrence2.jpg) | ![Category Master](images/Category_master.jpg) |
+| ![Task Creation](Reminder-main/User_manual/recurrence2.jpg) | ![Category Master](images/Category_master.jpg) |
 
 ---
 
